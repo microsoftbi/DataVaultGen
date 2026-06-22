@@ -141,6 +141,10 @@ export function generatePsaFlow() {
 
 // ── 部署 ──────────────────────────────────────────────────────
 
+export function deployRuntime(connId: number) {
+  return http.post('/deploy/runtime', null, { params: { conn_id: connId } })
+}
+
 export function deployDv(connId: number) {
   return http.post('/deploy/dv', null, { params: { conn_id: connId } })
 }

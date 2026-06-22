@@ -135,7 +135,8 @@ async function openFieldConfig(row: ObjectItem) {
     const res = await api.listAttributes(row.table_name)
     const list: Attribute[] = res.data
     for (const attr of list) {
-      if (!attr.is_bk && !attr.is_pk && !attr.is_di) attr.is_di = true
+      // 没有任何标记时默认 DI
+      if (!attr.is_bk && !attr.is_pk && !attr.is_di && !attr.is_fk) attr.is_di = true
       // 加载后同步：如果 is_bk 或 is_pk 任一为 true，两个都设为 true
       if (attr.is_bk || attr.is_pk) { attr.is_bk = true; attr.is_pk = true }
     }
@@ -153,17 +154,18 @@ function onDialogClosed() {
 }
 
 function handleBkPkChange(row: Attribute, val: boolean) {
-  row.is_bk = val; row.is_pk = val
-  if (val) row.is_di = false
+  if (!val) { row.is_bk = false; row.is_pk = false; markModified(row); return }
+  row.is_bk = true; row.is_pk = true; row.is_di = false; row.is_fk = false
   markModified(row)
 }
 function handleDiChange(row: Attribute, val: boolean) {
-  row.is_di = val
-  if (val) { row.is_bk = false; row.is_pk = false }
+  if (!val) { row.is_di = false; markModified(row); return }
+  row.is_di = true; row.is_bk = false; row.is_pk = false; row.is_fk = false
   markModified(row)
 }
 function handleFkChange(row: Attribute, val: boolean) {
-  row.is_fk = val
+  if (!val) { row.is_fk = false; markModified(row); return }
+  row.is_fk = true; row.is_bk = false; row.is_pk = false; row.is_di = false
   markModified(row)
 }
 

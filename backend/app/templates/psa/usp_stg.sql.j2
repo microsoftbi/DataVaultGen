@@ -39,7 +39,8 @@ BEGIN
                 [{{ f.field_name }}],
                 {% endfor %}
                 CONVERT(CHAR(32), HASHBYTES('MD5',
-                    {% for f in table.bk_fields %}
+                    {% set key_fields = table.pk_fields + table.bk_fields %}
+                    {% for f in key_fields %}
                     ISNULL(TRIM(CONVERT(NVARCHAR(255), [{{ f.field_name }}])), N'') + N'{{ hash_dummy }}'
                     {% if not loop.last %} + {% endif %}
                     {% endfor %}

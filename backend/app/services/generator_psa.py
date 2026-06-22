@@ -39,9 +39,9 @@ class PSAGenerator:
             }
             if row.is_pk:
                 table_map[key]["pk_fields"].append(field)
-            if row.is_bk:
+            elif row.is_bk:
                 table_map[key]["bk_fields"].append(field)
-            if row.is_di:
+            elif row.is_di:
                 table_map[key]["di_fields"].append(field)
 
         return list(table_map.values())

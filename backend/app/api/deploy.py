@@ -5,6 +5,7 @@ from app.database import get_meta_session, get_engine
 from app.models.meta import Configuration, ExecutionLog, Attribute, GenList, RecordSource
 from app.schemas import DeployRequest, ConfigResponse, ConfigUpdate
 from app.services.sql_executor import execute_batch, check_database_status
+from app.services.runtime_sql import RUNTIME_SQL
 from app.services.generator_psa import PSAGenerator
 from datetime import datetime
 
@@ -126,6 +127,33 @@ def deploy_dv(conn_id: int = None):
 
     log2 = ExecutionLog(
         log_source="deploy/dv",
+        log_type="E" if not result["success"] else "N",
+        message=result["message"],
+    )
+    session.add(log2)
+    session.commit()
+    return result
+
+
+@router.post("/deploy/runtime")
+def deploy_runtime(conn_id: int = None):
+    """部署运行时组件（EXECUTION_LOG 表 + USP_WRITELOG 存储过程）"""
+    if not conn_id:
+        raise HTTPException(400, "conn_id is required")
+    engine = get_engine(conn_id)
+    if not engine:
+        raise HTTPException(400, "Target connection not found")
+
+    session = get_meta_session()
+    log = ExecutionLog(log_source="deploy/runtime", log_type="N",
+                       message=f"Deploying runtime components to connection {conn_id}")
+    session.add(log)
+    session.commit()
+
+    result = execute_batch(conn_id, RUNTIME_SQL)
+
+    log2 = ExecutionLog(
+        log_source="deploy/runtime",
         log_type="E" if not result["success"] else "N",
         message=result["message"],
     )

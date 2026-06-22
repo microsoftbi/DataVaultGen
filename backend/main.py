@@ -11,8 +11,29 @@ from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 from app.config import settings
 from app.api import connections, meta_import, objects, generator, deploy, dv_config
-from app.models.meta import ConnectionConfig, init_meta_db
+from app.models.meta import ConnectionConfig, Configuration, init_meta_db
 from app.database import get_meta_engine, get_meta_session, build_engine, register_engine
+
+
+DEFAULT_CONFIGS = [
+    ("PSA_DB", "STAGE", "PSA 层数据库名称"),
+    ("CORE_DB", "CORE", "DV 层数据库名称"),
+    ("HASHDUMMY", "@IAMHUSKIES@", "Hash key 计算时字段间的填充串"),
+]
+
+
+def _init_default_config():
+    """启动时写入默认配置参数（如不存在）"""
+    try:
+        session = get_meta_session()
+        for name, value, desc in DEFAULT_CONFIGS:
+            exists = session.query(Configuration).filter(Configuration.config_name == name).first()
+            if not exists:
+                session.add(Configuration(config_name=name, config_value=value, description=desc))
+        session.commit()
+        session.close()
+    except Exception:
+        pass
 
 
 @asynccontextmanager
@@ -22,7 +43,10 @@ async def lifespan(app: FastAPI):
     engine = get_meta_engine()
     init_meta_db(engine)
 
-    # 2. 恢复之前保存的数据库连接引擎
+    # 2. 写入默认配置（如不存在）
+    _init_default_config()
+
+    # 3. 恢复之前保存的数据库连接引擎
     try:
         session = get_meta_session()
         rows = session.query(ConnectionConfig).all()

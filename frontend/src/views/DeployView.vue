@@ -149,6 +149,23 @@
       <div class="deploy-actions">
         <div class="action-item">
           <div class="action-info">
+            <strong>部署运行时组件</strong>
+            <p>在目标库创建 EXECUTION_LOG 表、USP_WRITELOG 存储过程及配置默认值。<br>生成的 PSA/DV 存储过程依赖此组件写入日志。</p>
+          </div>
+          <el-button
+            size="large"
+            :disabled="!selectedConnId"
+            :loading="deployRuntimeLoading"
+            @click="handleDeployRuntime"
+          >
+            部署运行时
+          </el-button>
+        </div>
+
+        <el-divider />
+
+        <div class="action-item">
+          <div class="action-info">
             <strong>部署 PSA</strong>
             <p>将生成的 PSA 分层 SQL 脚本部署到目标数据库执行。</p>
           </div>
@@ -299,6 +316,7 @@ import {
   getDeployStatus,
   deployPsa,
   deployDv,
+  deployRuntime,
   deploySql,
   listLogs,
   getDeployDiff,
@@ -427,6 +445,29 @@ async function handleDeployDv() {
     ElMessage.error(e?.response?.data?.message || '部署 DV 失败')
   } finally {
     deployDvLoading.value = false
+  }
+}
+
+// ── 部署运行时组件 ──
+
+const deployRuntimeLoading = ref(false)
+
+async function handleDeployRuntime() {
+  if (!selectedConnId.value) return
+  deployRuntimeLoading.value = true
+  try {
+    const res = await deployRuntime(selectedConnId.value)
+    const result = res.data
+    if (result.success) {
+      ElMessage.success(`运行时组件部署成功，${result.executed_count} 条语句已执行`)
+    } else {
+      ElMessage.warning(result.message || '运行时部署失败')
+    }
+    await refreshLogs()
+  } catch (e: any) {
+    ElMessage.error(e?.response?.data?.message || '部署运行时失败')
+  } finally {
+    deployRuntimeLoading.value = false
   }
 }
 

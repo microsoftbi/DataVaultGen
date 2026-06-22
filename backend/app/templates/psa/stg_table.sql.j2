@@ -1,0 +1,24 @@
+USE [{{ psa_db_name }}]
+GO
+
+{% for table in tables %}
+CREATE TABLE [{{ table.schema_name }}].[{{ table.object_name }}_STG](
+    [LOAD_DTS] DATETIME NOT NULL DEFAULT GETDATE(),
+    [REC_SRC] NVARCHAR(15) NOT NULL DEFAULT '{{ table.record_source }}',
+    [REC_PATH] NVARCHAR(256) NULL DEFAULT '{{ table.schema_name }}.{{ table.object_name }}',
+    [TRANSFER_DTS] DATETIME NULL DEFAULT GETDATE(),
+    [HK] CHAR(32) NULL,
+    [INSERT_TIME] DATETIME NULL,
+    {% for f in table.pk_fields %}
+    [{{ f.field_name }}] {{ f.field_type }} NULL,
+    {% endfor %}
+    {% for f in table.bk_fields %}
+    [{{ f.field_name }}] {{ f.field_type }} NULL,
+    {% endfor %}
+    {% for f in table.di_fields %}
+    [{{ f.field_name }}] {{ f.field_type }} NULL{% if not loop.last %},{% endif %}
+    {% endfor %}
+) ON [PRIMARY]
+GO
+
+{% endfor %}

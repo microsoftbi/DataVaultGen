@@ -1,0 +1,16 @@
+USE [{{ core_db_name }}]
+GO
+
+{% for link in dv_links %}
+CREATE TABLE [dbo].[{{ link.table_name }}](
+    [LOAD_DTS] DATETIMEOFFSET(7) NOT NULL DEFAULT SYSDATETIMEOFFSET(),
+    [CDC_OPERATION_CODE] CHAR(1) NOT NULL DEFAULT 'I',
+    [REC_SRC] NVARCHAR(15) NOT NULL DEFAULT '{{ link.record_source }}',
+    [HK] CHAR(32) NOT NULL,
+    {% for f in link.fk_fields %}
+    [{{ f.field_name }}] {{ f.field_type }} NULL{% if not loop.last %},{% endif %}
+    {% endfor %}
+) ON [PRIMARY]
+GO
+
+{% endfor %}

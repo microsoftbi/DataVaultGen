@@ -1,0 +1,26 @@
+USE [{{ psa_db_name }}]
+GO
+
+{% for table in tables %}
+CREATE TABLE [{{ table.schema_name }}].[{{ table.object_name }}_CDC](
+    [CDC_OPERATION_CODE] CHAR(1) NOT NULL,
+    [LOAD_DTS] DATETIME NOT NULL,
+    [REC_SRC] NVARCHAR(15) NOT NULL,
+    [REC_PATH] NVARCHAR(256) NULL,
+    [TRANSFER_DTS] DATETIME NULL,
+    [HK] CHAR(32) NULL,
+    [HF] CHAR(32) NULL,
+    [INSERT_TIME] DATETIME NULL,
+    {% for f in table.pk_fields %}
+    [{{ f.field_name }}] {{ f.field_type }} NULL,
+    {% endfor %}
+    {% for f in table.bk_fields %}
+    [{{ f.field_name }}] {{ f.field_type }} NULL,
+    {% endfor %}
+    {% for f in table.di_fields %}
+    [{{ f.field_name }}] {{ f.field_type }} NULL{% if not loop.last %},{% endif %}
+    {% endfor %}
+) ON [PRIMARY]
+GO
+
+{% endfor %}

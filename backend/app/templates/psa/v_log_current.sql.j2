@@ -1,0 +1,28 @@
+USE [{{ psa_db_name }}]
+GO
+
+{% for table in tables %}
+CREATE VIEW [{{ table.schema_name }}].[V_{{ table.object_name }}_LOG_CURRENT]
+AS
+SELECT
+    {% for f in table.pk_fields %}
+    LOG.[{{ f.field_name }}],
+    {% endfor %}
+    {% for f in table.bk_fields %}
+    LOG.[{{ f.field_name }}],
+    {% endfor %}
+    {% for f in table.di_fields %}
+    LOG.[{{ f.field_name }}],
+    {% endfor %}
+    LOG.[HK],
+    LOG.[HF],
+    LOG.[LOAD_DTS],
+    LOG.[VALID_FROM],
+    LOG.[VALID_TO],
+    LOG.[IS_CURRENT],
+    LOG.[CDC_OPERATION_CODE]
+FROM [{{ table.schema_name }}].[{{ table.object_name }}_LOG] LOG
+WHERE LOG.[IS_CURRENT] = 1
+GO
+
+{% endfor %}

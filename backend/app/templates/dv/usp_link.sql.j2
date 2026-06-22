@@ -1,0 +1,67 @@
+USE [{{ core_db_name }}]
+GO
+
+{% for link in dv_links %}
+CREATE PROCEDURE [dbo].[USP_{{ link.table_name }}]
+AS
+BEGIN
+    DECLARE @LOGSOURCE AS NVARCHAR(100)
+    SET @LOGSOURCE = N'{{ core_db_name }}.dbo.USP_{{ link.table_name }}'
+
+    EXEC META.dbo.USP_WRITELOG N'Start to load {{ link.table_name }}', @LOGSOURCE, N'N'
+
+    BEGIN TRY
+        BEGIN TRAN
+            INSERT INTO [dbo].[{{ link.table_name }}]
+            (
+                [LOAD_DTS],
+                [CDC_OPERATION_CODE],
+                [REC_SRC],
+                [HK],
+                {% for f in link.fk_fields %}
+                [{{ f.field_name }}]{% if not loop.last %},{% endif %}
+                {% endfor %}
+            )
+            SELECT
+                GETDATE() AS LOAD_DTS,
+                'I' AS CDC_OPERATION_CODE,
+                '{{ link.record_source }}' AS REC_SRC,
+                CONVERT(CHAR(32), HASHBYTES('MD5',
+                    {% for f in link.fk_fields %}
+                    ISNULL(TRIM(CONVERT(NVARCHAR(255), PSA.[{{ f.psa_field_name }}])), N'') + N'{{ hash_tail }}'
+                    {% if not loop.last %} + {% endif %}
+                    {% endfor %}
+                ), 2) AS HK,
+                {% for f in link.fk_fields %}
+                PSA.[{{ f.psa_field_name }}] AS [{{ f.field_name }}]{% if not loop.last %},{% endif %}
+                {% endfor %}
+            FROM
+            (
+                SELECT DISTINCT
+                    {% for f in link.fk_fields %}
+                    [{{ f.psa_field_name }}]{% if not loop.last %},{% endif %}
+                    {% endfor %}
+                FROM [{{ psa_db_name }}].[{{ link.psa_schema_name }}].[{{ link.psa_table_name }}_LOG]
+                WHERE IS_CURRENT = 1
+            ) PSA
+            LEFT JOIN [dbo].[{{ link.table_name }}] T ON T.HK = CONVERT(CHAR(32), HASHBYTES('MD5',
+                {% for f in link.fk_fields %}
+                ISNULL(TRIM(CONVERT(NVARCHAR(255), PSA.[{{ f.psa_field_name }}])), N'') + N'{{ hash_tail }}'
+                {% if not loop.last %} + {% endif %}
+                {% endfor %}
+            ), 2)
+            WHERE T.HK IS NULL
+
+        COMMIT TRAN
+        EXEC META.dbo.USP_WRITELOG N'Finish to load {{ link.table_name }}', @LOGSOURCE, N'N'
+    END TRY
+    BEGIN CATCH
+        ROLLBACK TRAN
+        DECLARE @ERROR_MESSAGE AS NVARCHAR(4000)
+        SET @ERROR_MESSAGE = N'Failed to load {{ link.table_name }}' + ISNULL(ERROR_MESSAGE(), '')
+        EXEC META.dbo.USP_WRITELOG @ERROR_MESSAGE, @LOGSOURCE, N'E'
+    END CATCH
+END
+GO
+
+{% endfor %}

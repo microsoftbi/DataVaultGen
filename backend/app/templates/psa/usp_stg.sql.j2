@@ -1,0 +1,63 @@
+USE [{{ psa_db_name }}]
+GO
+
+{% for table in tables %}
+CREATE PROCEDURE [{{ table.schema_name }}].[USP_{{ table.object_name }}_STG]
+AS
+BEGIN
+    DECLARE @LOGSOURCE AS NVARCHAR(100)
+    SET @LOGSOURCE = N'{{ psa_db_name }}.{{ table.schema_name }}.USP_{{ table.object_name }}_STG'
+
+    EXEC META.dbo.USP_WRITELOG N'Start to load {{ table.object_name }}_STG', @LOGSOURCE, N'N'
+
+    BEGIN TRY
+        BEGIN TRAN
+            TRUNCATE TABLE [{{ table.schema_name }}].[{{ table.object_name }}_STG]
+
+            INSERT INTO [{{ table.schema_name }}].[{{ table.object_name }}_STG]
+            (
+                {% for f in table.pk_fields %}
+                [{{ f.field_name }}],
+                {% endfor %}
+                {% for f in table.bk_fields %}
+                [{{ f.field_name }}],
+                {% endfor %}
+                {% for f in table.di_fields %}
+                [{{ f.field_name }}],
+                {% endfor %}
+                [HK],
+                [INSERT_TIME]
+            )
+            SELECT
+                {% for f in table.pk_fields %}
+                [{{ f.field_name }}],
+                {% endfor %}
+                {% for f in table.bk_fields %}
+                [{{ f.field_name }}],
+                {% endfor %}
+                {% for f in table.di_fields %}
+                [{{ f.field_name }}],
+                {% endfor %}
+                CONVERT(CHAR(32), HASHBYTES('MD5',
+                    {% for f in table.bk_fields %}
+                    ISNULL(TRIM(CONVERT(NVARCHAR(255), [{{ f.field_name }}])), N'') + N'{{ hash_dummy }}'
+                    {% if not loop.last %} + {% endif %}
+                    {% endfor %}
+                ), 2) AS HK,
+                GETDATE() AS INSERT_TIME
+            FROM [{{ table.schema_name }}].[{{ table.object_name }}]
+
+        COMMIT TRAN
+
+        EXEC META.dbo.USP_WRITELOG N'Finish to load {{ table.object_name }}_STG', @LOGSOURCE, N'N'
+    END TRY
+    BEGIN CATCH
+        ROLLBACK TRAN
+        DECLARE @ERROR_MESSAGE AS NVARCHAR(4000)
+        SET @ERROR_MESSAGE = N'Failed to load {{ table.object_name }}_STG' + ISNULL(ERROR_MESSAGE(), '')
+        EXEC META.dbo.USP_WRITELOG @ERROR_MESSAGE, @LOGSOURCE, N'E'
+    END CATCH
+END
+GO
+
+{% endfor %}

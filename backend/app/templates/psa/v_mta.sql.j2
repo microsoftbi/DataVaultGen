@@ -1,0 +1,28 @@
+USE [{{ psa_db_name }}]
+GO
+
+{% for table in tables %}
+CREATE VIEW [{{ table.schema_name }}].[V_{{ table.object_name }}_MTA]
+AS
+SELECT
+    CONVERT(CHAR(32), HASHBYTES('MD5',
+        {% for f in table.bk_fields %}
+        ISNULL(TRIM(CONVERT(NVARCHAR(255), [{{ f.field_name }}])), N'') + N'{{ hash_dummy }}'
+        {% if not loop.last %} + {% endif %}
+        {% endfor %}
+    ), 2) AS HK,
+    GETDATE() AS LOAD_DTS,
+    '{{ table.record_source }}' AS REC_SRC,
+    {% for f in table.pk_fields %}
+    [{{ f.field_name }}],
+    {% endfor %}
+    {% for f in table.bk_fields %}
+    [{{ f.field_name }}],
+    {% endfor %}
+    {% for f in table.di_fields %}
+    [{{ f.field_name }}]{% if not loop.last %},{% endif %}
+    {% endfor %}
+FROM [{{ table.schema_name }}].[{{ table.object_name }}]
+GO
+
+{% endfor %}

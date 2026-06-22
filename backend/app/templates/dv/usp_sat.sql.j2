@@ -1,0 +1,87 @@
+USE [{{ core_db_name }}]
+GO
+
+{% for sat in dv_sats %}
+CREATE PROCEDURE [dbo].[USP_{{ sat.table_name }}]
+AS
+BEGIN
+    DECLARE @LOGSOURCE AS NVARCHAR(100)
+    SET @LOGSOURCE = N'{{ core_db_name }}.dbo.USP_{{ sat.table_name }}'
+
+    EXEC META.dbo.USP_WRITELOG N'Start to load {{ sat.table_name }}', @LOGSOURCE, N'N'
+
+    BEGIN TRY
+        BEGIN TRAN
+            INSERT INTO [dbo].[{{ sat.table_name }}]
+            (
+                [LOAD_DTS],
+                [CDC_OPERATION_CODE],
+                [REC_SRC],
+                [HK],
+                [HF],
+                {% for f in sat.pk_fields %}
+                [{{ f.field_name }}],
+                {% endfor %}
+                {% for f in sat.di_fields %}
+                [{{ f.field_name }}]{% if not loop.last %},{% endif %}
+                {% endfor %}
+            )
+            SELECT
+                PSA.[LOAD_DTS],
+                PSA.[CDC_OPERATION_CODE],
+                '{{ sat.record_source }}' AS REC_SRC,
+                PSA.[HK],
+                PSA.[HF],
+                {% for f in sat.pk_fields %}
+                PSA.[{{ f.psa_field_name }}] AS [{{ f.field_name }}],
+                {% endfor %}
+                {% for f in sat.di_fields %}
+                PSA.[{{ f.psa_field_name }}] AS [{{ f.field_name }}]{% if not loop.last %},{% endif %}
+                {% endfor %}
+            FROM
+            (
+                SELECT
+                    [LOAD_DTS],
+                    [CDC_OPERATION_CODE],
+                    CONVERT(CHAR(32), HASHBYTES('MD5',
+                        {% for f in sat.pk_fields %}
+                        ISNULL(TRIM(CONVERT(NVARCHAR(255), [{{ f.psa_field_name }}])), N'') + N'{{ hash_tail }}'
+                        {% if not loop.last %} + {% endif %}
+                        {% endfor %}
+                        {% for f in sat.di_fields %}
+                        + ISNULL(TRIM(CONVERT(NVARCHAR(255), [{{ f.psa_field_name }}])), N'') + N'{{ hash_tail }}'
+                        {% endfor %}
+                    ), 2) AS HF,
+                    CONVERT(CHAR(32), HASHBYTES('MD5',
+                        {% for f in sat.pk_fields %}
+                        ISNULL(TRIM(CONVERT(NVARCHAR(255), [{{ f.psa_field_name }}])), N'') + N'{{ hash_tail }}'
+                        {% if not loop.last %} + {% endif %}
+                        {% endfor %}
+                    ), 2) AS HK,
+                    {% for f in sat.pk_fields %}
+                    [{{ f.psa_field_name }}],
+                    {% endfor %}
+                    {% for f in sat.di_fields %}
+                    [{{ f.psa_field_name }}]{% if not loop.last %},{% endif %}
+                    {% endfor %}
+                FROM [{{ psa_db_name }}].[{{ sat.psa_schema_name }}].[{{ sat.psa_table_name }}_LOG]
+                WHERE IS_CURRENT = 1
+                    AND CDC_OPERATION_CODE IN ('I', 'U')
+            ) PSA
+            LEFT JOIN [dbo].[{{ sat.table_name }}] T
+                ON T.HK = PSA.HK AND T.HF = PSA.HF
+            WHERE T.HK IS NULL
+
+        COMMIT TRAN
+        EXEC META.dbo.USP_WRITELOG N'Finish to load {{ sat.table_name }}', @LOGSOURCE, N'N'
+    END TRY
+    BEGIN CATCH
+        ROLLBACK TRAN
+        DECLARE @ERROR_MESSAGE AS NVARCHAR(4000)
+        SET @ERROR_MESSAGE = N'Failed to load {{ sat.table_name }}' + ISNULL(ERROR_MESSAGE(), '')
+        EXEC META.dbo.USP_WRITELOG @ERROR_MESSAGE, @LOGSOURCE, N'E'
+    END CATCH
+END
+GO
+
+{% endfor %}

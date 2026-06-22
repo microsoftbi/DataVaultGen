@@ -50,6 +50,18 @@
           <template #title>执行日志</template>
         </el-menu-item>
       </el-menu>
+      <div class="sidebar-spacer" />
+      <el-menu
+        :default-active="route.path"
+        :collapse="collapsed"
+        router
+        class="sidebar-menu sidebar-bottom"
+      >
+        <el-menu-item index="/intro">
+          <el-icon><InfoFilled /></el-icon>
+          <template #title>系统介绍</template>
+        </el-menu-item>
+      </el-menu>
     </el-aside>
     <el-container>
       <el-header class="app-header">
@@ -69,7 +81,7 @@ import { useRoute } from 'vue-router'
 import {
   Monitor, Connection, Upload, Setting,
   MagicStick, Promotion, Document,
-  Expand, Fold, Coin,
+  Expand, Fold, Coin, InfoFilled,
 } from '@element-plus/icons-vue'
 
 const route = useRoute()
@@ -82,6 +94,8 @@ const collapsed = ref(false)
   border-right: 1px solid var(--el-border-color-light);
   transition: width 0.3s;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 .sidebar-header {
   height: 60px;
@@ -108,6 +122,12 @@ const collapsed = ref(false)
 }
 .sidebar-menu {
   border-right: none;
+}
+.sidebar-spacer {
+  flex: 1;
+}
+.sidebar-bottom {
+  border-top: 1px solid var(--el-border-color-light);
 }
 .app-header {
   background-color: var(--el-bg-color);

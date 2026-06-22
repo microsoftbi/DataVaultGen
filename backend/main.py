@@ -100,6 +100,15 @@ app.include_router(deploy.router)
 app.include_router(dv_config.router)
 
 
+@app.get("/api/intro")
+def get_intro():
+    """返回系统介绍文档（docs/INTRO.md）"""
+    intro_path = Path(__file__).parent.parent / "docs" / "INTRO.md"
+    if intro_path.exists():
+        return {"success": True, "content": intro_path.read_text(encoding="utf-8")}
+    return {"success": False, "content": ""}
+
+
 @app.get("/api/health")
 def health():
     return {"status": "ok", "app": settings.app_name, "version": settings.app_version}

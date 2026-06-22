@@ -6,7 +6,7 @@
 
     <!-- 步骤条 -->
     <el-steps :active="activeStep" finish-status="success" class="import-steps">
-      <el-step title="选择源连接" description="选择数据源" />
+      <el-step title="选择OLTP数据源连接" description="选择OLTP数据源" />
       <el-step title="选择数据表" description="多选" />
       <el-step title="配置导入列" description="每表分开配置" />
       <el-step title="确认导入" description="确认并执行" />
@@ -15,21 +15,18 @@
 
     <!-- ==================== Step 0: 选择源连接 ==================== -->
     <el-card v-show="activeStep === 0" shadow="never" class="step-card">
-      <template #header><span class="step-title">步骤 1：选择源数据库连接</span></template>
+      <template #header><span class="step-title">步骤 1：选择OLTP数据源连接</span></template>
       <div v-if="!connectionsLoading && sourceConnections.length === 0" class="empty-hint">
-        <el-empty description="暂无数据源连接">
-          <p>请先配置一个标记为「源库」的数据库连接。</p>
+        <el-empty description="暂无OLTP数据源连接">
+          <p>请先在连接管理页面配置OLTP数据源的角色绑定。</p>
           <el-button type="primary" @click="goToConnections">前往连接管理</el-button>
         </el-empty>
       </div>
       <div v-else>
         <el-form label-width="120px">
-          <el-form-item label="数据源连接">
-            <el-select v-model="selectedConnId" placeholder="请选择数据源连接" style="width: 360px" :loading="connectionsLoading" @change="onConnChange">
-              <el-option v-for="c in sourceConnections" :key="c.id" :label="c.name" :value="c.id">
-                <span>{{ c.name }}</span>
-                <span class="conn-detail">({{ c.host }} / {{ c.database_name }})</span>
-              </el-option>
+          <el-form-item label="OLTP数据源">
+            <el-select v-model="selectedConnId" placeholder="请选择OLTP数据源连接" style="width: 360px" :loading="connectionsLoading" @change="onConnChange">
+              <el-option v-for="c in sourceConnections" :key="c.id" :label="c.name" :value="c.id" />
             </el-select>
           </el-form-item>
         </el-form>
@@ -169,7 +166,7 @@ const activeStep = ref(0)
 const connectionsLoading = ref(false)
 const connections = ref<Connection[]>([])
 const selectedConnId = ref<number | null>(null)
-const sourceConnections = computed(() => connections.value.filter(c => c.is_source))
+const sourceConnections = computed(() => connections.value)
 
 const tablesLoading = ref(false)
 const tables = ref<SourceTable[]>([])

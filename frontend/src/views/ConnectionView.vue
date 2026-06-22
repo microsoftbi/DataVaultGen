@@ -52,7 +52,7 @@
       <el-form
         ref="rolesFormRef"
         :model="rolesForm"
-        label-width="120px"
+        label-width="180px"
         style="max-width: 700px"
       >
         <el-form-item

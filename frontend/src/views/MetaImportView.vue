@@ -26,7 +26,10 @@
         <el-form label-width="120px">
           <el-form-item label="OLTP数据源">
             <el-select v-model="selectedConnId" placeholder="请选择OLTP数据源连接" style="width: 360px" :loading="connectionsLoading" @change="onConnChange">
-              <el-option v-for="c in sourceConnections" :key="c.id" :label="c.name" :value="c.id" />
+              <el-option v-for="c in sourceConnections" :key="c.id" :label="c.name" :value="c.id">
+                <span>{{ c.name }}</span>
+                <span class="conn-detail">({{ c.host }} / {{ c.database_name || '?' }})</span>
+              </el-option>
             </el-select>
           </el-form-item>
         </el-form>

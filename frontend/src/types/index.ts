@@ -30,7 +30,7 @@ export interface ConnectionCreate {
 export interface ConnectionTestRequest {
   host: string
   port: number
-  database_name: string
+  database_name?: string
   username: string
   password: string
 }
@@ -117,6 +117,26 @@ export interface AppConfig {
   psa_db_name: string
   hash_dummy: string
   core_db_name: string
+}
+
+// 数据库角色绑定
+export interface DatabaseRoleItem {
+  id: number
+  role_name: string
+  conn_id: number
+  database_name: string
+  created_at: string | null
+}
+
+export interface DatabaseRoleUpdate {
+  conn_id: number
+  database_name: string
+}
+
+export interface DatabaseRolesData {
+  oltp: DatabaseRoleItem | null
+  stage: DatabaseRoleItem | null
+  core: DatabaseRoleItem | null
 }
 
 // API 通用响应

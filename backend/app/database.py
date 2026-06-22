@@ -77,7 +77,9 @@ def remove_engine(conn_id: int):
 def test_connection(host: str, port: int, db_name: str, user: str, password: str) -> tuple[bool, str]:
     """测试数据库连接是否可用，返回 (成功与否, 详情)"""
     try:
-        engine = build_engine(host, port, db_name, user, password)
+        # 如果没有指定数据库名，用 master 测试服务器连通性
+        actual_db = db_name if db_name else "master"
+        engine = build_engine(host, port, actual_db, user, password)
         with engine.connect() as conn:
             conn.execute(text("SELECT 1"))
         engine.dispose()

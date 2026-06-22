@@ -11,7 +11,7 @@ class ConnectionCreate(BaseModel):
     name: str
     host: str = "localhost"
     port: int = 1433
-    database_name: str
+    database_name: Optional[str] = None
     username: str = "sa"
     password: str
     is_meta: bool = False
@@ -51,7 +51,7 @@ class ConnectionResponse(BaseModel):
 class ConnectionTestRequest(BaseModel):
     host: str
     port: int = 1433
-    database_name: str
+    database_name: Optional[str] = None
     username: str
     password: str
 
@@ -193,6 +193,32 @@ class ConfigResponse(BaseModel):
     psa_db_name: str
     hash_dummy: str
     core_db_name: str
+
+
+# ── 数据库角色绑定 ────────────────────────────────────────────
+
+class DatabaseRoleUpdate(BaseModel):
+    """单个角色的绑定配置"""
+    conn_id: int
+    database_name: str
+
+
+class DatabaseRolesRequest(BaseModel):
+    """三个角色的绑定配置"""
+    oltp: DatabaseRoleUpdate
+    stage: DatabaseRoleUpdate
+    core: DatabaseRoleUpdate
+
+
+class DatabaseRoleResponse(BaseModel):
+    id: int
+    role_name: str
+    conn_id: int
+    database_name: str
+    created_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
 
 
 # ── 日志 ──────────────────────────────────────────────────────

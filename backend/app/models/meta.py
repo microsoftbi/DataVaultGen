@@ -1,6 +1,6 @@
 """META 数据库 ORM 模型（SQLite 兼容）"""
 import logging
-from sqlalchemy import Column, Integer, String, DateTime, Text, inspect
+from sqlalchemy import Column, Integer, String, DateTime, Text, inspect, UniqueConstraint
 from sqlalchemy import text as sa_text
 from sqlalchemy.orm import DeclarativeBase
 from datetime import datetime
@@ -23,6 +23,7 @@ _MIGRATIONS: dict[str, list[tuple[str, str]]] = {
     ],
     "EXECUTION_LOG": [],
     "CONNECTION_CONFIG": [],
+    "DATABASE_ROLE": [],
 }
 
 
@@ -124,6 +125,18 @@ class ConnectionConfig(Base):
     is_meta = Column("IS_META", Integer, default=0)
     is_source = Column("IS_SOURCE", Integer, default=0)
     is_target = Column("IS_TARGET", Integer, default=0)
+    created_at = Column("CREATED_AT", DateTime, default=datetime.now)
+
+
+class DatabaseRole(Base):
+    """数据库角色绑定：OLTP / STAGE / CORE 分别绑定到哪个连接的哪个数据库"""
+    __tablename__ = "DATABASE_ROLE"
+    __table_args__ = (UniqueConstraint("ROLE_NAME"),)
+
+    id = Column("ID", Integer, primary_key=True, autoincrement=True)
+    role_name = Column("ROLE_NAME", String(32), nullable=False)   # OLTP / STAGE / CORE
+    conn_id = Column("CONN_ID", Integer, nullable=False)          # 关联 ConnectionConfig.id
+    database_name = Column("DATABASE_NAME", String(128), nullable=False)
     created_at = Column("CREATED_AT", DateTime, default=datetime.now)
 
 

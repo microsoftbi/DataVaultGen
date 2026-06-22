@@ -63,9 +63,10 @@ def create_connection(data: ConnectionCreate):
     session.commit()
     session.refresh(row)
 
-    # 注册动态引擎
-    engine = build_engine(data.host, data.port, data.database_name, data.username, data.password)
-    register_engine(row.id, engine)
+    # 注册动态引擎（仅在提供了数据库名时）
+    if data.database_name:
+        engine = build_engine(data.host, data.port, data.database_name, data.username, data.password)
+        register_engine(row.id, engine)
 
     return ConnectionResponse.model_validate(row)
 
@@ -86,11 +87,12 @@ def update_connection(conn_id: int, data: ConnectionUpdate):
 
     session.commit()
 
-    # 重新注册引擎
+    # 重新注册引擎（仅在提供了数据库名时）
     remove_engine(conn_id)
-    password = _decrypt(row.password_encrypted)
-    engine = build_engine(row.host, row.port, row.database_name, row.username, password)
-    register_engine(conn_id, engine)
+    if row.database_name:
+        password = _decrypt(row.password_encrypted)
+        engine = build_engine(row.host, row.port, row.database_name, row.username, password)
+        register_engine(conn_id, engine)
 
     return ConnectionResponse.model_validate(row)
 

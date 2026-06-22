@@ -5,6 +5,7 @@ import type {
   SourceTable, SourceColumn, Attribute,
   ObjectItem, GenerateResult, DeployResult,
   DatabaseStatus, LogEntry, AppConfig,
+  DatabaseRolesData, DatabaseRoleUpdate,
 } from '@/types'
 
 const http = axios.create({
@@ -223,6 +224,16 @@ export function listLogs(limit = 100, offset = 0) {
 
 export function clearLogs() {
   return http.delete('/logs')
+}
+
+// ── 数据库角色绑定 ────────────────────────────────────────────
+
+export function getDbRoles() {
+  return http.get<{ success: boolean; data: DatabaseRolesData }>('/db-roles')
+}
+
+export function updateDbRoles(data: { oltp: DatabaseRoleUpdate; stage: DatabaseRoleUpdate; core: DatabaseRoleUpdate }) {
+  return http.put<{ success: boolean; data: DatabaseRolesData }>('/db-roles', data)
 }
 
 // ── 健康检查 ──────────────────────────────────────────────────

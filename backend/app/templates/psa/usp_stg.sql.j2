@@ -2,6 +2,9 @@ USE [{{ psa_db_name }}]
 GO
 
 {% for table in tables %}
+IF EXISTS (SELECT * FROM sys.procedures WHERE name = 'USP_{{ table.object_name }}_STG' AND schema_id = SCHEMA_ID('{{ table.schema_name }}'))
+    DROP PROCEDURE [{{ table.schema_name }}].[USP_{{ table.object_name }}_STG]
+GO
 CREATE PROCEDURE [{{ table.schema_name }}].[USP_{{ table.object_name }}_STG]
 AS
 BEGIN

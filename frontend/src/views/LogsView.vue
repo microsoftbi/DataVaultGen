@@ -60,7 +60,7 @@
     <el-dialog
       v-model="detailVisible"
       title="消息详情"
-      width="700px"
+      width="1050px"
       :close-on-click-modal="false"
       top="5vh"
     >
@@ -80,7 +80,7 @@
           <el-input
             :model-value="detailRow.message || ''"
             type="textarea"
-            :rows="12"
+            :rows="18"
             readonly
             input-style="font-family: 'SF Mono', 'Fira Code', monospace; font-size: 13px; line-height: 1.6;"
           />

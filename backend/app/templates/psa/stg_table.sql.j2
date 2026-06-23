@@ -2,6 +2,9 @@ USE [{{ psa_db_name }}]
 GO
 
 {% for table in tables %}
+IF EXISTS (SELECT * FROM sys.tables WHERE name = '{{ table.object_name }}_STG' AND schema_id = SCHEMA_ID('{{ table.schema_name }}'))
+    DROP TABLE [{{ table.schema_name }}].[{{ table.object_name }}_STG]
+GO
 CREATE TABLE [{{ table.schema_name }}].[{{ table.object_name }}_STG](
     [LOAD_DTS] DATETIME NOT NULL DEFAULT GETDATE(),
     [REC_SRC] NVARCHAR(15) NOT NULL DEFAULT '{{ table.record_source }}',

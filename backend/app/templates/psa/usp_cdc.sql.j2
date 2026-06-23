@@ -3,6 +3,9 @@ GO
 
 {% for table in tables %}
 {% set pk_first = table.pk_fields[0] if table.pk_fields else {'field_name': 'ID'} %}
+IF EXISTS (SELECT * FROM sys.procedures WHERE name = 'USP_{{ table.object_name }}_CDC' AND schema_id = SCHEMA_ID('{{ table.schema_name }}'))
+    DROP PROCEDURE [{{ table.schema_name }}].[USP_{{ table.object_name }}_CDC]
+GO
 CREATE PROCEDURE [{{ table.schema_name }}].[USP_{{ table.object_name }}_CDC]
 AS
 BEGIN

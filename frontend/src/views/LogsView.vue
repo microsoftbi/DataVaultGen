@@ -1,10 +1,10 @@
 <template>
   <div class="logs-view">
     <div class="page-header">
-      <h2>执行日志</h2>
+      <h2>{{ $t('logs.title') }}</h2>
       <div class="header-actions">
-        <el-button @click="fetchLogs" :loading="loading">刷新</el-button>
-        <el-button type="danger" @click="handleClear">清空日志</el-button>
+        <el-button @click="fetchLogs" :loading="loading">{{ $t('logs.refresh') }}</el-button>
+        <el-button type="danger" @click="handleClear">{{ $t('logs.clear') }}</el-button>
       </div>
     </div>
 
@@ -12,19 +12,19 @@
     <el-card shadow="never" class="summary-card">
       <div class="summary-bar">
         <span class="summary-item">
-          总计：<strong>{{ summary.total }}</strong>
+          {{ $t('logs.total') }}：<strong>{{ summary.total }}</strong>
         </span>
         <el-divider direction="vertical" />
         <span class="summary-item summary-info">
-          信息：<strong>{{ summary.info }}</strong>
+          {{ $t('logs.info') }}：<strong>{{ summary.info }}</strong>
         </span>
         <el-divider direction="vertical" />
         <span class="summary-item summary-error">
-          错误：<strong>{{ summary.error }}</strong>
+          {{ $t('logs.error') }}：<strong>{{ summary.error }}</strong>
         </span>
         <el-divider direction="vertical" />
         <span class="summary-item summary-warning">
-          警告：<strong>{{ summary.warning }}</strong>
+          {{ $t('logs.warning') }}：<strong>{{ summary.warning }}</strong>
         </span>
       </div>
     </el-card>
@@ -40,16 +40,16 @@
       :default-sort="{ prop: 'created_at', order: 'descending' }"
     >
       <el-table-column prop="id" label="ID" width="70" sortable />
-      <el-table-column prop="created_at" label="时间" width="170" sortable />
-      <el-table-column prop="log_source" label="来源" min-width="120" />
-      <el-table-column label="类型" width="90">
+      <el-table-column prop="created_at" :label="$t('logs.time')" width="170" sortable />
+      <el-table-column prop="log_source" :label="$t('logs.source')" min-width="120" />
+      <el-table-column :label="$t('logs.logType')" width="90">
         <template #default="{ row }">
           <el-tag :type="logTypeTag(row.log_type)" size="small">
             {{ logTypeLabel(row.log_type) }}
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="message" label="消息" min-width="300" show-overflow-tooltip>
+      <el-table-column prop="message" :label="$t('logs.message')" min-width="300" show-overflow-tooltip>
         <template #default="{ row }">
           <el-link type="primary" underline @click="showMessageDetail(row)">{{ row.message }}</el-link>
         </template>
@@ -59,24 +59,24 @@
     <!-- 消息详情弹窗 -->
     <el-dialog
       v-model="detailVisible"
-      title="消息详情"
+      :title="$t('logs.detailTitle')"
       width="1050px"
       :close-on-click-modal="false"
       top="5vh"
     >
       <el-form v-if="detailRow" label-width="80px">
-        <el-form-item label="时间">
+        <el-form-item :label="$t('logs.time')">
           <el-text>{{ detailRow.created_at }}</el-text>
         </el-form-item>
-        <el-form-item label="来源">
+        <el-form-item :label="$t('logs.source')">
           <el-text>{{ detailRow.log_source || '-' }}</el-text>
         </el-form-item>
-        <el-form-item label="类型">
+        <el-form-item :label="$t('logs.logType')">
           <el-tag :type="logTypeTag(detailRow.log_type)" size="small">
             {{ logTypeLabel(detailRow.log_type) }}
           </el-tag>
         </el-form-item>
-        <el-form-item label="消息">
+        <el-form-item :label="$t('logs.message')">
           <el-input
             :model-value="detailRow.message || ''"
             type="textarea"
@@ -87,7 +87,7 @@
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="detailVisible = false">关闭</el-button>
+        <el-button @click="detailVisible = false">{{ $t('common.close') }}</el-button>
       </template>
     </el-dialog>
   </div>
@@ -95,9 +95,12 @@
 
 <script setup lang="ts">
 import { onMounted, reactive, ref, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { LogEntry } from '@/types'
 import { listLogs, clearLogs } from '@/api'
+
+const { t } = useI18n()
 
 const logs = ref<LogEntry[]>([])
 const loading = ref(false)
@@ -119,9 +122,9 @@ function logTypeTag(type: string) {
 }
 
 function logTypeLabel(type: string) {
-  if (type === 'N') return '信息'
-  if (type === 'E') return '错误'
-  if (type === 'W') return '警告'
+  if (type === 'N') return t('logs.typeInfo')
+  if (type === 'E') return t('logs.typeError')
+  if (type === 'W') return t('logs.typeWarning')
   return type
 }
 
@@ -152,7 +155,7 @@ async function fetchLogs() {
     logs.value = res.data
     calcSummary()
   } catch (e: any) {
-    ElMessage.error(e?.response?.data?.message || e?.message || '获取日志失败')
+    ElMessage.error(e?.response?.data?.message || e?.message || t('logs.getLogsFailed'))
   } finally {
     loading.value = false
   }
@@ -160,13 +163,13 @@ async function fetchLogs() {
 
 async function handleClear() {
   try {
-    await ElMessageBox.confirm('确定要清空所有执行日志吗？此操作不可恢复。', '确认清空', {
-      confirmButtonText: '清空',
-      cancelButtonText: '取消',
+    await ElMessageBox.confirm(t('logs.clearConfirm'), t('logs.confirmClearTitle'), {
+      confirmButtonText: t('logs.clearBtn'),
+      cancelButtonText: t('common.cancel'),
       type: 'warning',
     })
     await clearLogs()
-    ElMessage.success('日志已清空')
+    ElMessage.success(t('logs.cleared'))
     logs.value = []
     calcSummary()
   } catch {

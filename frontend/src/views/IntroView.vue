@@ -1,15 +1,18 @@
 <template>
   <div class="intro-container">
     <div v-loading="loading" class="markdown-body" v-html="renderedHtml"></div>
-    <el-empty v-if="!loading && !renderedHtml" description="暂无系统介绍" />
+    <el-empty v-if="!loading && !renderedHtml" :description="$t('intro.empty')" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { marked } from 'marked'
 import hljs from 'highlight.js'
 import 'highlight.js/styles/github-dark.css'
+
+const { locale } = useI18n()
 
 // 配置 marked 使用 highlight.js
 marked.setOptions({
@@ -26,20 +29,24 @@ const loading = ref(true)
 const renderedHtml = ref('')
 
 async function loadIntro() {
+  loading.value = true
   try {
-    const res = await fetch('/api/intro')
+    const res = await fetch(`/api/intro?lang=${encodeURIComponent(locale.value)}`)
     const data = await res.json()
     if (data.success && data.content) {
       renderedHtml.value = await marked.parse(data.content)
+    } else {
+      renderedHtml.value = ''
     }
   } catch (e) {
-    console.error('加载系统介绍失败', e)
+    console.error('Failed to load intro', e)
   } finally {
     loading.value = false
   }
 }
 
 onMounted(loadIntro)
+watch(locale, loadIntro)
 </script>
 
 <style scoped>

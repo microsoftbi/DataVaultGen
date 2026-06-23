@@ -1,39 +1,39 @@
 <template>
   <div class="generate-dv-view">
     <div class="page-header">
-      <h2>Data Vault 2.0 代码生成</h2>
+      <h2>{{ $t('generate.dvTitle') }}</h2>
     </div>
 
     <el-card shadow="never" class="preview-card">
       <template #header>
         <div class="card-header">
-          <span class="section-title">选择生成类型</span>
+          <span class="section-title">{{ $t('generate.selectType') }}</span>
           <div class="preview-actions">
             <el-tag v-if="sqlResult" size="small" type="info" class="line-count">
-              {{ lineCount }} lines
+              {{ lineCount }} {{ $t('generate.lines') }}
             </el-tag>
             <el-button v-if="sqlResult" size="small" @click="copySql">
-              {{ copySuccess ? '已复制' : '复制 SQL' }}
+              {{ copySuccess ? $t('common.copied') : $t('generate.copySql') }}
             </el-button>
             <el-button v-if="sqlResult" size="small" @click="downloadSql">
-              下载 SQL
+              {{ $t('generate.downloadSql') }}
             </el-button>
           </div>
         </div>
       </template>
 
       <el-tabs v-model="activeTab" type="card" @tab-change="onTabChange">
-        <el-tab-pane label="HUB 表" name="dv_hub" />
-        <el-tab-pane label="SAT 表" name="dv_sat" />
-        <el-tab-pane label="LINK 表" name="dv_link" />
-        <el-tab-pane label="USP_HUB" name="dv_usp_hub" />
-        <el-tab-pane label="USP_SAT" name="dv_usp_sat" />
-        <el-tab-pane label="USP_LINK" name="dv_usp_link" />
-        <el-tab-pane label="DV 全部" name="dv_all" />
+        <el-tab-pane :label="$t('generate.dvTabs.hub')" name="dv_hub" />
+        <el-tab-pane :label="$t('generate.dvTabs.sat')" name="dv_sat" />
+        <el-tab-pane :label="$t('generate.dvTabs.link')" name="dv_link" />
+        <el-tab-pane :label="$t('generate.dvTabs.uspHub')" name="dv_usp_hub" />
+        <el-tab-pane :label="$t('generate.dvTabs.uspSat')" name="dv_usp_sat" />
+        <el-tab-pane :label="$t('generate.dvTabs.uspLink')" name="dv_usp_link" />
+        <el-tab-pane :label="$t('generate.dvTabs.all')" name="dv_all" />
       </el-tabs>
 
       <div v-if="!sqlResult && !generating" class="placeholder-text">
-        选择上方标签自动生成对应 SQL 代码...
+        {{ $t('generate.placeholderText') }}
       </div>
       <div v-loading="generating" class="sql-wrapper">
         <pre v-if="sqlResult" class="sql-code"><code ref="codeRef" class="language-sql">{{ sqlResult }}</code></pre>
@@ -44,6 +44,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, nextTick, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import hljs from 'highlight.js'
 import 'highlight.js/styles/github-dark.css'
@@ -51,6 +52,8 @@ import {
   generateDvHub, generateDvSat, generateDvLink,
   generateDvUspHub, generateDvUspSat, generateDvUspLink, generateDvAll,
 } from '@/api'
+
+const { t } = useI18n()
 
 const codeRef = ref<HTMLElement | null>(null)
 const sqlResult = ref('')
@@ -82,14 +85,14 @@ async function onTabChange(tabName: string | number) {
     const res = await apiFn()
     const sql = res.data?.sql || ''
     sqlResult.value = sql
-    if (!sql) ElMessage.warning('生成结果为空')
+    if (!sql) ElMessage.warning(t('generate.generateEmpty'))
   } catch (e: any) {
-    ElMessage.error('生成失败: ' + (e?.response?.data?.message || e.message))
+    ElMessage.error(t('generate.generateFailed') + ': ' + (e?.response?.data?.message || e.message))
   } finally { generating.value = false }
 }
 
 function downloadSql() {
-  if (!sqlResult.value) { ElMessage.warning('没有可下载的 SQL 内容'); return }
+  if (!sqlResult.value) { ElMessage.warning(t('generate.noDownloadable')); return }
   const blob = new Blob([sqlResult.value], { type: 'text/plain;charset=utf-8' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
@@ -101,9 +104,9 @@ async function copySql() {
   if (!sqlResult.value) return
   try {
     await navigator.clipboard.writeText(sqlResult.value)
-    copySuccess.value = true; ElMessage.success('已复制到剪贴板')
+    copySuccess.value = true; ElMessage.success(t('generate.copied'))
     setTimeout(() => { copySuccess.value = false }, 2000)
-  } catch { ElMessage.error('复制失败') }
+  } catch { ElMessage.error(t('generate.copyFailed')) }
 }
 
 onMounted(() => { onTabChange('dv_hub') })

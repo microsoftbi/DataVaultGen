@@ -1,39 +1,39 @@
 <template>
   <div class="generate-psa-view">
     <div class="page-header">
-      <h2>PSA Type 2 代码生成</h2>
+      <h2>{{ $t('generate.psaTitle') }}</h2>
     </div>
 
     <el-card shadow="never" class="preview-card">
       <template #header>
         <div class="card-header">
-          <span class="section-title">选择生成类型</span>
+          <span class="section-title">{{ $t('generate.selectType') }}</span>
           <div class="preview-actions">
             <el-tag v-if="sqlResult" size="small" type="info" class="line-count">
-              {{ lineCount }} lines
+              {{ lineCount }} {{ $t('generate.lines') }}
             </el-tag>
             <el-button v-if="sqlResult" size="small" @click="copySql">
-              {{ copySuccess ? '已复制' : '复制 SQL' }}
+              {{ copySuccess ? $t('common.copied') : $t('generate.copySql') }}
             </el-button>
             <el-button v-if="sqlResult" size="small" @click="downloadSql">
-              下载 SQL
+              {{ $t('generate.downloadSql') }}
             </el-button>
           </div>
         </div>
       </template>
 
       <el-tabs v-model="activeTab" type="card" @tab-change="onTabChange">
-        <el-tab-pane label="STG" name="stg" />
-        <el-tab-pane label="CDC" name="cdc" />
-        <el-tab-pane label="LOG" name="log" />
-        <el-tab-pane label="视图" name="views" />
-        <el-tab-pane label="存储过程" name="usps" />
-        <el-tab-pane label="PSA 全部" name="all" />
-        <el-tab-pane label="PSA 流程" name="flow" />
+        <el-tab-pane :label="$t('generate.psaTabs.stg')" name="stg" />
+        <el-tab-pane :label="$t('generate.psaTabs.cdc')" name="cdc" />
+        <el-tab-pane :label="$t('generate.psaTabs.log')" name="log" />
+        <el-tab-pane :label="$t('generate.psaTabs.views')" name="views" />
+        <el-tab-pane :label="$t('generate.psaTabs.usps')" name="usps" />
+        <el-tab-pane :label="$t('generate.psaTabs.all')" name="all" />
+        <el-tab-pane :label="$t('generate.psaTabs.flow')" name="flow" />
       </el-tabs>
 
       <div v-if="!sqlResult && !generating" class="placeholder-text">
-        选择上方标签自动生成对应 SQL 代码...
+        {{ $t('generate.placeholderText') }}
       </div>
       <div v-loading="generating" class="sql-wrapper">
         <pre v-if="sqlResult" class="sql-code"><code ref="codeRef" class="language-sql">{{ sqlResult }}</code></pre>
@@ -44,6 +44,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, nextTick, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import hljs from 'highlight.js'
 import 'highlight.js/styles/github-dark.css'
@@ -51,6 +52,8 @@ import {
   generatePsaStg, generatePsaCdc, generatePsaLog,
   generatePsaViews, generatePsaUsps, generatePsaAll, generatePsaFlow,
 } from '@/api'
+
+const { t } = useI18n()
 
 const codeRef = ref<HTMLElement | null>(null)
 const sqlResult = ref('')
@@ -82,14 +85,14 @@ async function onTabChange(tabName: string | number) {
     const res = await apiFn()
     const sql = res.data?.sql || ''
     sqlResult.value = sql
-    if (!sql) ElMessage.warning('生成结果为空')
+    if (!sql) ElMessage.warning(t('generate.generateEmpty'))
   } catch (e: any) {
-    ElMessage.error('生成失败: ' + (e?.response?.data?.message || e.message))
+    ElMessage.error(t('generate.generateFailed') + ': ' + (e?.response?.data?.message || e.message))
   } finally { generating.value = false }
 }
 
 function downloadSql() {
-  if (!sqlResult.value) { ElMessage.warning('没有可下载的 SQL 内容'); return }
+  if (!sqlResult.value) { ElMessage.warning(t('generate.noDownloadable')); return }
   const blob = new Blob([sqlResult.value], { type: 'text/plain;charset=utf-8' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
@@ -101,9 +104,9 @@ async function copySql() {
   if (!sqlResult.value) return
   try {
     await navigator.clipboard.writeText(sqlResult.value)
-    copySuccess.value = true; ElMessage.success('已复制到剪贴板')
+    copySuccess.value = true; ElMessage.success(t('generate.copied'))
     setTimeout(() => { copySuccess.value = false }, 2000)
-  } catch { ElMessage.error('复制失败') }
+  } catch { ElMessage.error(t('generate.copyFailed')) }
 }
 
 onMounted(() => { onTabChange('stg') })

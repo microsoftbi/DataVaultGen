@@ -2,9 +2,9 @@
   <div class="dashboard-container">
     <!-- 欢迎区域 -->
     <div class="welcome-section">
-      <h1 class="welcome-title">DWH-Generator 管理中心</h1>
+      <h1 class="welcome-title">{{ $t('dashboard.welcomeTitle') }}</h1>
       <p class="welcome-desc">
-        数据仓库自动化生成平台，帮助您快速完成从数据源接入到目标部署的全流程。
+        {{ $t('dashboard.welcomeDesc') }}
       </p>
     </div>
 
@@ -18,7 +18,7 @@
             </div>
             <div class="stat-info">
               <span class="stat-value">{{ stats.connections }}</span>
-              <span class="stat-label">已配置连接</span>
+              <span class="stat-label">{{ $t('dashboard.statConnections') }}</span>
             </div>
           </div>
         </el-card>
@@ -32,7 +32,7 @@
             </div>
             <div class="stat-info">
               <span class="stat-value">{{ stats.fields }}</span>
-              <span class="stat-label">已导入字段</span>
+              <span class="stat-label">{{ $t('dashboard.statFields') }}</span>
             </div>
           </div>
         </el-card>
@@ -46,7 +46,7 @@
             </div>
             <div class="stat-info">
               <span class="stat-value">{{ stats.pending }}</span>
-              <span class="stat-label">待生成对象</span>
+              <span class="stat-label">{{ $t('dashboard.statPending') }}</span>
             </div>
           </div>
         </el-card>
@@ -59,9 +59,9 @@
               <el-icon :size="36"><Monitor /></el-icon>
             </div>
             <div class="stat-info">
-              <span class="stat-label">系统状态</span>
+              <span class="stat-label">{{ $t('dashboard.statSystemStatus') }}</span>
               <el-tag
-                :type="systemStatus === '正常运行' ? 'success' : 'danger'"
+                :type="systemStatus === t('dashboard.statusNormal') ? 'success' : 'danger'"
                 size="large"
                 class="status-tag"
               >
@@ -81,7 +81,7 @@
       <template #header>
         <div class="guide-header">
           <el-icon :size="22"><Guide /></el-icon>
-          <span>快速入门指南</span>
+          <span>{{ $t('dashboard.guideTitle') }}</span>
         </div>
       </template>
 
@@ -100,7 +100,8 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { onMounted, reactive, ref, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { Connection, List, Files, Monitor, Guide } from '@element-plus/icons-vue'
 import {
   listConnections,
@@ -108,6 +109,8 @@ import {
   listObjects,
   healthCheck,
 } from '@/api'
+
+const { t } = useI18n()
 
 interface Stats {
   connections: number
@@ -132,35 +135,17 @@ const stats = reactive<Stats>({
   pending: 0,
 })
 
-const systemStatus = ref<string>('加载中...')
+const systemStatus = ref<string>(t('dashboard.statusLoading'))
 const healthInfo = ref<HealthInfo | null>(null)
 
-const steps: Step[] = [
-  {
-    title: '配置数据源连接',
-    desc: '添加源数据库和元数据库的连接信息，支持多种数据库类型。',
-  },
-  {
-    title: '导入元数据',
-    desc: '选择源数据表，将表结构及字段信息导入到元数据库中。',
-  },
-  {
-    title: '标记字段属性',
-    desc: '为字段标记业务主键 (BK)、物理主键 (PK) 和脱敏字段 (DI)。',
-  },
-  {
-    title: '配置生成对象',
-    desc: '选择需要生成代码的数据对象，并配置全量加载或增量同步。',
-  },
-  {
-    title: '生成代码',
-    desc: '一键生成 PSA 分层所需的存储过程、视图和执行流脚本。',
-  },
-  {
-    title: '部署执行',
-    desc: '将生成的 SQL 脚本部署到目标数据库中执行，完成数据同步。',
-  },
-]
+const steps = computed<Step[]>(() => [
+  { title: t('dashboard.step1Title'), desc: t('dashboard.step1Desc') },
+  { title: t('dashboard.step2Title'), desc: t('dashboard.step2Desc') },
+  { title: t('dashboard.step3Title'), desc: t('dashboard.step3Desc') },
+  { title: t('dashboard.step4Title'), desc: t('dashboard.step4Desc') },
+  { title: t('dashboard.step5Title'), desc: t('dashboard.step5Desc') },
+  { title: t('dashboard.step6Title'), desc: t('dashboard.step6Desc') },
+])
 
 onMounted(async () => {
   try {
@@ -176,10 +161,10 @@ onMounted(async () => {
     stats.pending = objRes.data.filter((o) => o.is_gen).length
 
     const h = healthRes.data
-    systemStatus.value = h.status === 'ok' ? '正常运行' : '异常'
+    systemStatus.value = h.status === 'ok' ? t('dashboard.statusNormal') : t('dashboard.statusError')
     healthInfo.value = { status: h.status, app: h.app, version: h.version }
   } catch {
-    systemStatus.value = '无法连接'
+    systemStatus.value = t('dashboard.statusCannotConnect')
     healthInfo.value = null
   }
 })

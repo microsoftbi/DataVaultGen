@@ -1,14 +1,14 @@
 <template>
   <div class="generate-config-view">
     <div class="page-header">
-      <h2>配置摘要</h2>
+      <h2>{{ $t('generate.configSummary') }}</h2>
     </div>
 
     <el-card shadow="never" class="config-card">
       <template #header>
         <div class="card-header">
-          <span class="section-title">系统配置</span>
-          <el-button size="small" @click="openConfigDialog">编辑配置</el-button>
+          <span class="section-title">{{ $t('generate.sysConfig') }}</span>
+          <el-button size="small" @click="openConfigDialog">{{ $t('generate.editConfig') }}</el-button>
         </div>
       </template>
 
@@ -16,13 +16,13 @@
         <el-skeleton :rows="2" animated />
       </div>
       <el-descriptions v-else :column="2" border size="small">
-        <el-descriptions-item label="PSA 数据库名">
+        <el-descriptions-item :label="$t('generate.psaDbName')">
           {{ config.psa_db_name || '-' }}
         </el-descriptions-item>
-        <el-descriptions-item label="HASHDUMMY">
+        <el-descriptions-item :label="$t('generate.hashDummy')">
           {{ config.hash_dummy || '-' }}
         </el-descriptions-item>
-        <el-descriptions-item label="CORE 数据库（DV）">
+        <el-descriptions-item :label="$t('generate.coreDbName')">
           {{ config.core_db_name || '-' }}
         </el-descriptions-item>
       </el-descriptions>
@@ -31,25 +31,25 @@
     <!-- 编辑配置对话框 -->
     <el-dialog
       v-model="configDialogVisible"
-      title="编辑配置"
+      :title="$t('generate.editConfig')"
       width="480px"
       :close-on-click-modal="false"
     >
       <el-form ref="configFormRef" :model="configForm" label-width="140px" :rules="configRules">
-        <el-form-item label="PSA 数据库名" prop="psa_db_name">
-          <el-input v-model="configForm.psa_db_name" placeholder="请输入 PSA 数据库名" />
+        <el-form-item :label="$t('generate.psaDbName')" prop="psa_db_name">
+          <el-input v-model="configForm.psa_db_name" :placeholder="$t('generate.inputPsaDbPh')" />
         </el-form-item>
-        <el-form-item label="HASHDUMMY" prop="hash_dummy">
-          <el-input v-model="configForm.hash_dummy" placeholder="请输入 HASHDUMMY 值" />
+        <el-form-item :label="$t('generate.hashDummy')" prop="hash_dummy">
+          <el-input v-model="configForm.hash_dummy" :placeholder="$t('generate.inputHashDummyPh')" />
         </el-form-item>
-        <el-form-item label="CORE 库名 (DV)" prop="core_db_name">
-          <el-input v-model="configForm.core_db_name" placeholder="请输入 CORE 数据库名" />
+        <el-form-item :label="$t('generate.coreDbLabel')" prop="core_db_name">
+          <el-input v-model="configForm.core_db_name" :placeholder="$t('generate.inputCoreDbPh')" />
         </el-form-item>
       </el-form>
 
       <template #footer>
-        <el-button @click="configDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="savingConfig" @click="saveConfig">保存</el-button>
+        <el-button @click="configDialogVisible = false">{{ $t('common.cancel') }}</el-button>
+        <el-button type="primary" :loading="savingConfig" @click="saveConfig">{{ $t('common.save') }}</el-button>
       </template>
     </el-dialog>
   </div>
@@ -57,9 +57,12 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { getConfig, updateConfig } from '@/api'
 import type { AppConfig } from '@/types'
+
+const { t } = useI18n()
 
 const config = reactive<AppConfig>({ psa_db_name: '', hash_dummy: '', core_db_name: '' })
 const configLoading = ref(false)
@@ -71,7 +74,7 @@ async function loadConfig() {
     const res = await getConfig()
     Object.assign(config, res.data)
   } catch (e: any) {
-    ElMessage.error('获取配置失败: ' + (e?.response?.data?.message || e.message))
+    ElMessage.error(t('generate.getConfigFailed') + ': ' + (e?.response?.data?.message || e.message))
   } finally { configLoading.value = false }
 }
 
@@ -81,9 +84,9 @@ const savingConfig = ref(false)
 const configFormRef = ref<any>(null)
 
 const configRules = {
-  psa_db_name: [{ required: true, message: '请输入 PSA 数据库名', trigger: 'blur' }],
-  hash_dummy: [{ required: true, message: '请输入 HASHDUMMY 值', trigger: 'blur' }],
-  core_db_name: [{ required: true, message: '请输入 CORE 数据库名', trigger: 'blur' }],
+  psa_db_name: [{ required: true, message: t('generate.inputPsaDbPh'), trigger: 'blur' }],
+  hash_dummy: [{ required: true, message: t('generate.inputHashDummyPh'), trigger: 'blur' }],
+  core_db_name: [{ required: true, message: t('generate.inputCoreDbPh'), trigger: 'blur' }],
 }
 
 function openConfigDialog() {
@@ -105,9 +108,9 @@ async function saveConfig() {
     })
     Object.assign(config, configForm)
     configDialogVisible.value = false
-    ElMessage.success('配置已更新')
+    ElMessage.success(t('generate.configSaved'))
   } catch (e: any) {
-    ElMessage.error('保存配置失败: ' + (e?.response?.data?.message || e.message))
+    ElMessage.error(t('generate.saveConfigFailed') + ': ' + (e?.response?.data?.message || e.message))
   } finally { savingConfig.value = false }
 }
 </script>

@@ -1,31 +1,31 @@
 <template>
   <div class="meta-import-view">
     <div class="page-header">
-      <h2>元数据导入</h2>
+      <h2>{{ $t('metaImport.pageTitle') }}</h2>
     </div>
 
     <!-- 步骤条 -->
     <el-steps :active="activeStep" finish-status="success" class="import-steps">
-      <el-step title="选择OLTP数据源连接" description="选择OLTP数据源" />
-      <el-step title="选择数据表" description="多选" />
-      <el-step title="配置导入列" description="每表分开配置" />
-      <el-step title="确认导入" description="确认并执行" />
-      <el-step title="导入完成" description="查看结果" />
+      <el-step :title="$t('metaImport.step1Title')" :description="$t('metaImport.step1Desc')" />
+      <el-step :title="$t('metaImport.step2Title')" :description="$t('metaImport.step2Desc')" />
+      <el-step :title="$t('metaImport.step3Title')" :description="$t('metaImport.step3Desc')" />
+      <el-step :title="$t('metaImport.step4Title')" :description="$t('metaImport.step4Desc')" />
+      <el-step :title="$t('metaImport.step5Title')" :description="$t('metaImport.step5Desc')" />
     </el-steps>
 
     <!-- ==================== Step 0: 选择源连接 ==================== -->
     <el-card v-show="activeStep === 0" shadow="never" class="step-card">
-      <template #header><span class="step-title">步骤 1：选择OLTP数据源连接</span></template>
+      <template #header><span class="step-title">{{ $t('metaImport.step1TitleLong') }}</span></template>
       <div v-if="!connectionsLoading && sourceConnections.length === 0" class="empty-hint">
-        <el-empty description="暂无OLTP数据源连接">
-          <p>请先在连接管理页面配置OLTP数据源的角色绑定。</p>
-          <el-button type="primary" @click="goToConnections">前往连接管理</el-button>
+        <el-empty :description="$t('metaImport.emptyConn')">
+          <p>{{ $t('metaImport.emptyHint') }}</p>
+          <el-button type="primary" @click="goToConnections">{{ $t('metaImport.goToConnections') }}</el-button>
         </el-empty>
       </div>
       <div v-else>
         <el-form label-width="120px">
-          <el-form-item label="OLTP数据源">
-            <el-select v-model="selectedConnId" placeholder="请选择OLTP数据源连接" style="width: 360px" :loading="connectionsLoading" @change="onConnChange">
+          <el-form-item :label="$t('metaImport.oltpLabel')">
+            <el-select v-model="selectedConnId" :placeholder="$t('metaImport.selectOltp')" style="width: 360px" :loading="connectionsLoading" @change="onConnChange">
               <el-option v-for="c in sourceConnections" :key="c.id" :label="c.name" :value="c.id">
                 <span>{{ c.name }}</span>
                 <span class="conn-detail">({{ c.host }} / {{ c.database_name || '?' }})</span>
@@ -34,26 +34,26 @@
           </el-form-item>
         </el-form>
         <div class="step-actions">
-          <el-button type="primary" :disabled="!selectedConnId" @click="loadTables">下一步</el-button>
+          <el-button type="primary" :disabled="!selectedConnId" @click="loadTables">{{ $t('common.next') }}</el-button>
         </div>
       </div>
     </el-card>
 
     <!-- ==================== Step 1: 选择数据表 ==================== -->
     <el-card v-show="activeStep === 1" shadow="never" class="step-card">
-      <template #header><span class="step-title">步骤 2：选择数据表（可多选）</span></template>
+      <template #header><span class="step-title">{{ $t('metaImport.step2TitleLong') }}</span></template>
 
       <el-table :data="tables" v-loading="tablesLoading" border stripe style="width: 100%"
         @selection-change="onSelectionChange" ref="tableRef">
         <el-table-column type="selection" width="50" />
-        <el-table-column prop="table_schema" label="模式(Schema)" min-width="160" />
-        <el-table-column prop="table_name" label="表名" min-width="200" />
+        <el-table-column prop="table_schema" :label="$t('metaImport.tableSchema')" min-width="160" />
+        <el-table-column prop="table_name" :label="$t('metaImport.tableName')" min-width="200" />
       </el-table>
 
       <div class="step-actions">
-        <el-button @click="activeStep = 0">上一步</el-button>
+        <el-button @click="activeStep = 0">{{ $t('common.prev') }}</el-button>
         <el-button type="primary" :disabled="selectedTables.length === 0" :loading="loadingColumns" @click="loadAllColumns">
-          下一步：配置导入列 ({{ selectedTables.length }} 张表)
+          {{ $t('metaImport.nextConfigCols', { count: selectedTables.length }) }}
         </el-button>
       </div>
     </el-card>
@@ -62,7 +62,7 @@
     <el-card v-show="activeStep === 2" shadow="never" class="step-card">
       <template #header>
         <div class="step2-header">
-          <span class="step-title">步骤 3：配置每张表的导入列（左 → 右导入，右 → 左移除）</span>
+          <span class="step-title">{{ $t('metaImport.step3TitleLong') }}</span>
         </div>
       </template>
 
@@ -76,7 +76,7 @@
             <el-transfer
               v-model="selectedKeysMap[cfg.key]"
               :data="cfg.transferData"
-              :titles="['源表列', '已导入 META']"
+              :titles="[t('metaImport.leftListTitle'), t('metaImport.rightListTitle')]"
               @change="(value: any, direction: any, keys: any) => handleTransfer(cfg, direction, keys)"
               style="height: 400px; width: 100%;"
             />
@@ -85,58 +85,58 @@
       </el-tabs>
 
       <div class="step-actions">
-        <el-button @click="activeStep = 1">上一步</el-button>
+        <el-button @click="activeStep = 1">{{ $t('common.prev') }}</el-button>
         <el-button type="primary" @click="goToConfirm">
-          确认导入（{{ selectedTables.length }} 张表）
+          {{ $t('metaImport.importBtn', { count: selectedTables.length }) }}
         </el-button>
       </div>
     </el-card>
 
     <!-- ==================== Step 3: 确认导入 ==================== -->
     <el-card v-show="activeStep === 3" shadow="never" class="step-card">
-      <template #header><span class="step-title">步骤 4：确认导入</span></template>
+      <template #header><span class="step-title">{{ $t('metaImport.step4TitleLong') }}</span></template>
 
       <el-table :data="confirmSummary" border stripe size="small" style="width: 100%">
-        <el-table-column prop="tableName" label="表名" min-width="180" />
-        <el-table-column prop="selectedCount" label="导入列数" width="100">
+        <el-table-column prop="tableName" :label="$t('metaImport.importTableHeader')" min-width="180" />
+        <el-table-column prop="selectedCount" :label="$t('metaImport.importedCols')" width="100">
           <template #default="{ row }"><el-tag type="success">{{ row.selectedCount }}</el-tag></template>
         </el-table-column>
-        <el-table-column prop="skippedCount" label="跳过（技术字段）" width="150">
+        <el-table-column prop="skippedCount" :label="$t('metaImport.skippedCols')" width="150">
           <template #default="{ row }"><el-tag v-if="row.skippedCount" type="warning">{{ row.skippedCount }}</el-tag></template>
         </el-table-column>
-        <el-table-column prop="columns" label="导入列" min-width="300">
+        <el-table-column prop="columns" :label="$t('metaImport.columns')" min-width="300">
           <template #default="{ row }"><el-text size="small" type="info">{{ row.columns.join(', ') }}</el-text></template>
         </el-table-column>
       </el-table>
 
       <div class="step-actions">
-        <el-button :disabled="importing" @click="activeStep = 2">上一步</el-button>
+        <el-button :disabled="importing" @click="activeStep = 2">{{ $t('common.prev') }}</el-button>
         <el-button type="primary" :loading="importing" @click="handleBatchImport">
-          确认导入 ({{ selectedTables.length }} 张表)
+          {{ $t('metaImport.importBtn', { count: selectedTables.length }) }}
         </el-button>
       </div>
     </el-card>
 
     <!-- ==================== Step 4: 导入结果 ==================== -->
     <el-card v-show="activeStep === 4" shadow="never" class="step-card">
-      <template #header><span class="step-title">步骤 5：导入完成</span></template>
-      <el-result icon="success" title="元数据导入完成"
-        :sub-title="`成功处理 ${importResults.length} 张表，共导入 ${totalImported} 个字段`">
+      <template #header><span class="step-title">{{ $t('metaImport.step5TitleLong') }}</span></template>
+      <el-result icon="success" :title="$t('metaImport.importComplete')"
+        :sub-title="t('metaImport.importSummary', { tables: importResults.length, fields: totalImported })">
         <template #extra>
           <el-table :data="importResults" border stripe size="small" style="width: 100%; margin-bottom: 16px">
-            <el-table-column prop="table" label="表名" min-width="180" />
-            <el-table-column prop="imported" label="导入字段" width="100">
+            <el-table-column prop="table" :label="$t('metaImport.importTableHeader')" min-width="180" />
+            <el-table-column prop="imported" :label="$t('metaImport.importedField')" width="100">
               <template #default="{ row }"><el-tag :type="row.error ? 'danger' : 'success'">{{ row.imported || 0 }}</el-tag></template>
             </el-table-column>
-            <el-table-column prop="error" label="结果" min-width="300">
+            <el-table-column prop="error" :label="$t('metaImport.result')" min-width="300">
               <template #default="{ row }">
                 <el-text v-if="row.error" type="danger" size="small">{{ row.error }}</el-text>
-                <el-text v-else type="success" size="small">成功</el-text>
+                <el-text v-else type="success" size="small">{{ $t('metaImport.rowSuccess') }}</el-text>
               </template>
             </el-table-column>
           </el-table>
-          <el-button type="primary" @click="goToMetaConfig">前往字段配置</el-button>
-          <el-button @click="resetAll">继续导入</el-button>
+          <el-button type="primary" @click="goToMetaConfig">{{ $t('metaImport.goToMetaConfig') }}</el-button>
+          <el-button @click="resetAll">{{ $t('metaImport.continueImport') }}</el-button>
         </template>
       </el-result>
     </el-card>
@@ -144,13 +144,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, reactive, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import type { Connection, SourceTable } from '@/types'
 import * as api from '@/api'
 
 const router = useRouter()
+const { t } = useI18n()
 
 // ── 技术 / BK 判定 ──────────────────────────────────────────────
 const TECHNICAL_FIELDS = new Set([
@@ -221,7 +223,7 @@ async function fetchConnections() {
   try {
     const res = await api.listConnections()
     connections.value = res.data
-  } catch (e: any) { ElMessage.error(e?.response?.data?.message || e?.message || '获取连接失败') }
+  } catch (e: any) { ElMessage.error(e?.response?.data?.message || e?.message || t('metaImport.fetchConnFailed')) }
   finally { connectionsLoading.value = false }
 }
 
@@ -240,8 +242,8 @@ async function loadTables() {
   try {
     const res = await api.listSourceTables(selectedConnId.value)
     if (res.data.success) tables.value = res.data.tables
-    else { ElMessage.warning((res.data as any).message || '获取表失败'); tables.value = [] }
-  } catch (e: any) { ElMessage.error(e?.response?.data?.message || e?.message || '获取表失败'); tables.value = [] }
+    else { ElMessage.warning((res.data as any).message || t('metaImport.fetchTablesFailed')); tables.value = [] }
+  } catch (e: any) { ElMessage.error(e?.response?.data?.message || e?.message || t('metaImport.fetchTablesFailed')); tables.value = [] }
   finally { tablesLoading.value = false }
 }
 
@@ -277,7 +279,7 @@ async function loadAllColumns() {
 
       configs.push({ key, tableName: tbl.table_name, tableSchema: tbl.table_schema, transferData, totalCount: srcCols.length })
     } catch (e: any) {
-      ElMessage.error(`获取 ${tbl.table_name} 列信息失败`)
+      ElMessage.error(t('metaImport.fetchColumnsFailed', { table: tbl.table_name }))
     }
   }
 
@@ -294,9 +296,9 @@ async function handleTransfer(cfg: TableConfig, direction: string, keys: string[
     // 左→右：导入到 META
     try {
       await api.importMeta(selectedConnId.value!, cfg.tableSchema, cfg.tableName, undefined, keys)
-      ElMessage.success(`${cfg.tableName}: 导入 ${keys.length} 列`)
+      ElMessage.success(t('metaImport.transferImported', { table: cfg.tableName, n: keys.length }))
     } catch (e: any) {
-      ElMessage.error(`导入失败: ${e?.response?.data?.detail || e?.message}`)
+      ElMessage.error(t('metaImport.importColumnsFailed', { msg: e?.response?.data?.detail || e?.message }))
       // 回退：从右侧移除
       selectedKeysMap.value[cfg.key] = (selectedKeysMap.value[cfg.key] || []).filter(k => !keys.includes(k))
     }
@@ -308,10 +310,10 @@ async function handleTransfer(cfg: TableConfig, direction: string, keys: string[
       const toDelete = (metaRes.data || []).filter((a: any) => keys.includes(a.column_name)).map((a: any) => ({ id: a.id }))
       if (toDelete.length > 0) {
         await api.batchDeleteAttributes(toDelete)
-        ElMessage.success(`${cfg.tableName}: 移除 ${toDelete.length} 列`)
+        ElMessage.success(t('metaImport.transferRemoved', { table: cfg.tableName, n: toDelete.length }))
       }
     } catch (e: any) {
-      ElMessage.error(`移除失败: ${e?.response?.data?.detail || e?.message}`)
+      ElMessage.error(t('metaImport.removeColumnsFailed', { msg: e?.response?.data?.detail || e?.message }))
       // 回退
       selectedKeysMap.value[cfg.key] = [...(selectedKeysMap.value[cfg.key] || []), ...keys]
     }
@@ -340,7 +342,7 @@ async function handleBatchImport() {
       })
       totalImported.value += data.imported || 0
     } catch (e: any) {
-      const msg = e?.response?.data?.detail || e?.response?.data?.message || e?.message || '导入失败'
+      const msg = e?.response?.data?.detail || e?.response?.data?.message || e?.message || t('metaImport.importFailed')
       console.error(`Import ${cfg.tableName} failed:`, msg)
       importResults.value.push({
         table: cfg.tableName,
@@ -352,7 +354,7 @@ async function handleBatchImport() {
 
   activeStep.value = 4
   importing.value = false
-  ElMessage.success(`导入完成：${tableConfigs.value.length} 张表，${totalImported.value} 个字段`)
+  ElMessage.success(t('metaImport.importDoneSummary', { tables: tableConfigs.value.length, fields: totalImported.value }))
 }
 
 function goToMetaConfig() { router.push('/meta-config') }

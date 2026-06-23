@@ -4,9 +4,9 @@
     <el-card class="section-card">
       <template #header>
         <div class="section-header">
-          <span>服务器连接管理</span>
+          <span>{{ $t('connection.serverSectionTitle') }}</span>
           <el-button type="primary" size="small" @click="openCreateDialog">
-            新建连接
+            {{ $t('connection.new') }}
           </el-button>
         </div>
       </template>
@@ -18,16 +18,16 @@
         stripe
         style="width: 100%"
       >
-        <el-table-column prop="name" label="名称" min-width="120" />
-        <el-table-column prop="host" label="主机" min-width="130" />
-        <el-table-column prop="port" label="端口" width="80" />
-        <el-table-column prop="username" label="用户名" width="100" />
-        <el-table-column prop="created_at" label="创建时间" width="170" />
-        <el-table-column label="操作" width="220" fixed="right">
+        <el-table-column prop="name" :label="$t('connection.nameColumn')" min-width="120" />
+        <el-table-column prop="host" :label="$t('connection.host')" min-width="130" />
+        <el-table-column prop="port" :label="$t('connection.port')" width="80" />
+        <el-table-column prop="username" :label="$t('connection.username')" width="100" />
+        <el-table-column prop="created_at" :label="$t('common.createdAt')" width="170" />
+        <el-table-column :label="$t('common.operation')" width="220" fixed="right">
           <template #default="{ row }">
-            <el-button size="small" type="primary" link @click="openEditDialog(row)">编辑</el-button>
-            <el-button size="small" type="success" link @click="handleTest(row)">测试连接</el-button>
-            <el-button size="small" type="danger" link @click="handleDelete(row)">删除</el-button>
+            <el-button size="small" type="primary" link @click="openEditDialog(row)">{{ $t('common.edit') }}</el-button>
+            <el-button size="small" type="success" link @click="handleTest(row)">{{ $t('connection.testConn') }}</el-button>
+            <el-button size="small" type="danger" link @click="handleDelete(row)">{{ $t('common.delete') }}</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -37,14 +37,14 @@
     <el-card class="section-card" style="margin-top: 20px">
       <template #header>
         <div class="section-header">
-          <span>数据库角色绑定</span>
+          <span>{{ $t('connection.roleBindSectionTitle') }}</span>
           <el-button
             type="primary"
             size="small"
             @click="handleSaveRoles"
             :loading="savingRoles"
           >
-            保存角色配置
+            {{ $t('connection.saveRoles') }}
           </el-button>
         </div>
       </template>
@@ -56,13 +56,13 @@
         style="max-width: 700px"
       >
         <el-form-item
-          label="OLTP（源系统）"
+          :label="$t('connection.oltpLabel')"
           prop="oltp.conn_id"
-          :rules="[{ required: true, message: '请选择连接', trigger: 'change' }]"
+          :rules="[{ required: true, message: t('connection.selectConnRequired'), trigger: 'change' }]"
         >
           <el-select
             v-model="rolesForm.oltp.conn_id"
-            placeholder="选择连接"
+            :placeholder="$t('connection.selectConn')"
             style="width: 250px; margin-right: 12px"
             @change="rolesForm.oltp.conn_id = $event"
           >
@@ -75,19 +75,19 @@
           </el-select>
           <el-input
             v-model="rolesForm.oltp.database_name"
-            placeholder="输入数据库名"
+            :placeholder="$t('connection.inputDbNamePh')"
             style="width: 200px"
           />
         </el-form-item>
 
         <el-form-item
-          label="STAGE（PSA 层）"
+          :label="$t('connection.stageLabel')"
           prop="stage.conn_id"
-          :rules="[{ required: true, message: '请选择连接', trigger: 'change' }]"
+          :rules="[{ required: true, message: t('connection.selectConnRequired'), trigger: 'change' }]"
         >
           <el-select
             v-model="rolesForm.stage.conn_id"
-            placeholder="选择连接"
+            :placeholder="$t('connection.selectConn')"
             style="width: 250px; margin-right: 12px"
           >
             <el-option
@@ -99,19 +99,19 @@
           </el-select>
           <el-input
             v-model="rolesForm.stage.database_name"
-            placeholder="输入数据库名"
+            :placeholder="$t('connection.inputDbNamePh')"
             style="width: 200px"
           />
         </el-form-item>
 
         <el-form-item
-          label="CORE（DV 层）"
+          :label="$t('connection.coreLabel')"
           prop="core.conn_id"
-          :rules="[{ required: true, message: '请选择连接', trigger: 'change' }]"
+          :rules="[{ required: true, message: t('connection.selectConnRequired'), trigger: 'change' }]"
         >
           <el-select
             v-model="rolesForm.core.conn_id"
-            placeholder="选择连接"
+            :placeholder="$t('connection.selectConn')"
             style="width: 250px; margin-right: 12px"
           >
             <el-option
@@ -123,7 +123,7 @@
           </el-select>
           <el-input
             v-model="rolesForm.core.database_name"
-            placeholder="输入数据库名"
+            :placeholder="$t('connection.inputDbNamePh')"
             style="width: 200px"
           />
         </el-form-item>
@@ -133,7 +133,7 @@
     <!-- 新建 / 编辑 对话框 -->
     <el-dialog
       v-model="dialogVisible"
-      :title="isEditing ? '编辑连接' : '新建连接'"
+      :title="isEditing ? t('connection.editConn') : t('connection.new')"
       width="480px"
       :close-on-click-modal="false"
     >
@@ -144,13 +144,13 @@
         label-width="90px"
         style="padding-right: 20px"
       >
-        <el-form-item label="名称" prop="name">
-          <el-input v-model="form.name" placeholder="请输入连接名称" />
+        <el-form-item :label="$t('connection.name')" prop="name">
+          <el-input v-model="form.name" :placeholder="$t('connection.nameRequired')" />
         </el-form-item>
-        <el-form-item label="主机" prop="host">
-          <el-input v-model="form.host" placeholder="请输入主机地址" />
+        <el-form-item :label="$t('connection.host')" prop="host">
+          <el-input v-model="form.host" :placeholder="$t('connection.hostRequired')" />
         </el-form-item>
-        <el-form-item label="端口" prop="port">
+        <el-form-item :label="$t('connection.port')" prop="port">
           <el-input-number
             v-model="form.port"
             :min="1"
@@ -158,25 +158,25 @@
             style="width: 100%"
           />
         </el-form-item>
-        <el-form-item label="用户名" prop="username">
-          <el-input v-model="form.username" placeholder="请输入用户名" />
+        <el-form-item :label="$t('connection.username')" prop="username">
+          <el-input v-model="form.username" :placeholder="$t('connection.usernameRequired')" />
         </el-form-item>
-        <el-form-item label="密码" prop="password">
+        <el-form-item :label="$t('connection.password')" prop="password">
           <el-input
             v-model="form.password"
             type="password"
             show-password
-            :placeholder="isEditing ? '留空则不修改密码' : '请输入密码'"
+            :placeholder="isEditing ? t('connection.passwordHint') : t('connection.passwordRequired')"
           />
         </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="handleTestInDialog" :loading="testingInDialog">
-          测试连接
+          {{ $t('connection.testConn') }}
         </el-button>
-        <el-button @click="dialogVisible = false">取消</el-button>
+        <el-button @click="dialogVisible = false">{{ $t('common.cancel') }}</el-button>
         <el-button type="primary" @click="handleSave" :loading="saving">
-          保存
+          {{ $t('common.save') }}
         </el-button>
       </template>
 
@@ -196,6 +196,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted, nextTick } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import type { Connection } from '@/types'
@@ -203,6 +204,7 @@ import type { DatabaseRoleUpdate } from '@/types'
 import * as api from '@/api'
 import { useConnectionStore } from '@/stores/connection'
 
+const { t } = useI18n()
 const connectionStore = useConnectionStore()
 
 // ── 连接列表 ──────────────────────────────────────────────────────
@@ -234,16 +236,16 @@ const defaultForm = () => ({
 const form = reactive(defaultForm())
 
 const formRules: FormRules = {
-  name: [{ required: true, message: '请输入连接名称', trigger: 'blur' }],
-  host: [{ required: true, message: '请输入主机地址', trigger: 'blur' }],
-  port: [{ required: true, message: '请输入端口', trigger: 'blur' }],
-  username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
+  name: [{ required: true, message: t('connection.nameRequired'), trigger: 'blur' }],
+  host: [{ required: true, message: t('connection.hostRequired'), trigger: 'blur' }],
+  port: [{ required: true, message: t('connection.portRequired'), trigger: 'blur' }],
+  username: [{ required: true, message: t('connection.usernameRequired'), trigger: 'blur' }],
   password: [
     {
       required: true,
       validator: (_rule: any, value: string, callback: Function) => {
         if (!isEditing.value && !value) {
-          callback(new Error('请输入密码'))
+          callback(new Error(t('connection.passwordRequired')))
         } else {
           callback()
         }
@@ -295,15 +297,15 @@ async function handleSave() {
       }
       if (form.password) payload.password = form.password
       await connectionStore.update(editingId.value, payload)
-      ElMessage.success('连接已更新')
+      ElMessage.success(t('connection.updated'))
     } else {
       await connectionStore.create({ ...form })
-      ElMessage.success('连接已创建')
+      ElMessage.success(t('connection.created'))
     }
     dialogVisible.value = false
     connectionStore.fetchAll()
   } catch (e: any) {
-    ElMessage.error(e?.response?.data?.message || e?.message || '操作失败')
+    ElMessage.error(e?.response?.data?.message || e?.message || t('connection.operationFailed'))
   } finally {
     saving.value = false
   }
@@ -316,12 +318,12 @@ async function handleTest(row: Connection) {
     const res = await api.testSavedConnection(row.id)
     const data = res.data
     if (data.success) {
-      ElMessage.success(data.message || '连接成功')
+      ElMessage.success(data.message || t('connection.testSuccess'))
     } else {
-      ElMessage.warning(data.message || '连接失败')
+      ElMessage.warning(data.message || t('connection.testFail'))
     }
   } catch (e: any) {
-    ElMessage.error(e?.response?.data?.message || e?.message || '测试连接失败')
+    ElMessage.error(e?.response?.data?.message || e?.message || t('connection.testFailed'))
   }
 }
 
@@ -338,12 +340,12 @@ async function handleTestInDialog() {
     })
     const data = res.data
     if (data.success) {
-      ElMessage.success(data.message || '连接成功')
+      ElMessage.success(data.message || t('connection.testSuccess'))
     } else {
       testError.value = data.message || 'Connection failed'
     }
   } catch (e: any) {
-    testError.value = e?.response?.data?.message || e?.message || '测试连接失败'
+    testError.value = e?.response?.data?.message || e?.message || t('connection.testFailed')
   } finally {
     testingInDialog.value = false
   }
@@ -354,12 +356,12 @@ async function handleTestInDialog() {
 async function handleDelete(row: Connection) {
   try {
     await ElMessageBox.confirm(
-      `确定要删除连接「${row.name}」吗？此操作不可恢复。`,
-      '确认删除',
-      { confirmButtonText: '删除', cancelButtonText: '取消', type: 'warning' },
+      t('connection.deleteConfirm', { name: row.name }),
+      t('connection.confirmDeleteTitle'),
+      { confirmButtonText: t('common.delete'), cancelButtonText: t('common.cancel'), type: 'warning' },
     )
     await connectionStore.remove(row.id)
-    ElMessage.success('连接已删除')
+    ElMessage.success(t('connection.deleted'))
     connectionStore.fetchAll()
     fetchRoles() // 可能影响了角色绑定中的选择
   } catch {
@@ -415,9 +417,9 @@ async function handleSaveRoles() {
       stage: rolesForm.stage,
       core: rolesForm.core,
     })
-    ElMessage.success('角色配置已保存')
+    ElMessage.success(t('connection.saveRolesSuccess'))
   } catch (e: any) {
-    ElMessage.error(e?.response?.data?.message || e?.message || '保存失败')
+    ElMessage.error(e?.response?.data?.message || e?.message || t('connection.saveFailed'))
   } finally {
     savingRoles.value = false
   }

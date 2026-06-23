@@ -3,68 +3,68 @@
     <!-- 对象列表 -->
     <div class="section">
       <div class="section-header">
-        <h3>对象列表管理</h3>
+        <h3>{{ $t('metaConfig.objectList') }}</h3>
       </div>
 
       <el-table :data="objects" v-loading="objectsLoading" border stripe style="width:100%">
-        <el-table-column prop="table_name" label="表名" min-width="160" />
-        <el-table-column prop="schema_name" label="模式" width="100" />
-        <el-table-column label="是否生成" width="100" align="center">
+        <el-table-column prop="table_name" :label="$t('metaConfig.tableName')" min-width="160" />
+        <el-table-column prop="schema_name" :label="$t('common.schema')" width="100" />
+        <el-table-column :label="$t('metaConfig.isGen')" width="100" align="center">
           <template #default="{ row }">
             <el-switch v-model="row.is_gen"
               @change="(v:any) => handleObjectSwitch(row, 'is_gen', v as boolean)" />
           </template>
         </el-table-column>
-        <el-table-column label="全量加载" width="100" align="center">
+        <el-table-column :label="$t('metaConfig.isFullLoad')" width="100" align="center">
           <template #default="{ row }">
             <el-switch v-model="row.is_full_load"
               @change="(v:any) => handleObjectSwitch(row, 'is_full_load', v as boolean)" />
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="120" align="center">
+        <el-table-column :label="$t('metaConfig.operation')" width="120" align="center">
           <template #default="{ row }">
-            <el-button size="small" type="primary" @click="openFieldConfig(row)">字段配置</el-button>
+            <el-button size="small" type="primary" @click="openFieldConfig(row)">{{ $t('metaConfig.fieldConfig') }}</el-button>
           </template>
         </el-table-column>
       </el-table>
     </div>
 
     <!-- 字段配置对话框 -->
-    <el-dialog v-model="dialogVisible" :title="`字段配置 — ${dialogTableName}`"
+    <el-dialog v-model="dialogVisible" :title="t('metaConfig.fieldConfigTitle', { table: dialogTableName })"
       :width="fullscreen ? '98%' : '800px'" :fullscreen="fullscreen"
       :close-on-click-modal="false" @closed="onDialogClosed">
       <template #header="{ close, titleId, titleClass }">
         <div class="dialog-header">
-          <span :id="titleId" :class="titleClass">字段配置 — {{ dialogTableName }}</span>
+          <span :id="titleId" :class="titleClass">{{ $t('metaConfig.fieldConfigTitle', { table: dialogTableName }) }}</span>
           <el-button :icon="fullscreen ? FullScreen : FullScreen" size="small" circle
             @click="fullscreen = !fullscreen" />
         </div>
       </template>
       <div class="dialog-field-actions">
-        <el-button size="small" @click="handleSetAllDi">全部设为DI</el-button>
-        <el-button size="small" @click="handleClearAll">清除所有标记</el-button>
+        <el-button size="small" @click="handleSetAllDi">{{ $t('metaConfig.setAllDi') }}</el-button>
+        <el-button size="small" @click="handleClearAll">{{ $t('metaConfig.clearAllMark') }}</el-button>
         <el-button type="primary" size="small" :loading="saving"
           :disabled="modifiedRows.length === 0" @click="handleSave">
-          保存变更 <span v-if="modifiedRows.length > 0">({{ modifiedRows.length }})</span>
+          {{ $t('metaConfig.saveChanges') }} <span v-if="modifiedRows.length > 0">({{ modifiedRows.length }})</span>
         </el-button>
       </div>
 
       <el-table :data="attributes" v-loading="attributesLoading" border stripe style="width:100%" max-height="450" row-key="id">
-        <el-table-column prop="column_name" label="字段名" min-width="160" />
-        <el-table-column prop="data_type" label="数据类型" width="140" />
-        <el-table-column label="标识键 (BK/PK)" width="120" align="center">
+        <el-table-column prop="column_name" :label="$t('metaConfig.columnName')" min-width="160" />
+        <el-table-column prop="data_type" :label="$t('metaConfig.dataType')" width="140" />
+        <el-table-column :label="$t('metaConfig.isBkPk')" width="120" align="center">
           <template #default="{ row }">
             <el-checkbox :model-value="row.is_bk || row.is_pk"
               @change="(v:any) => handleBkPkChange(row, v as boolean)" />
           </template>
         </el-table-column>
-        <el-table-column label="DI" width="80" align="center">
+        <el-table-column :label="$t('metaConfig.isDi')" width="80" align="center">
           <template #default="{ row }">
             <el-checkbox :model-value="row.is_di"
               @change="(v:any) => handleDiChange(row, v as boolean)" />
           </template>
         </el-table-column>
-        <el-table-column label="FK" width="80" align="center">
+        <el-table-column :label="$t('metaConfig.isFk')" width="80" align="center">
           <template #default="{ row }">
             <el-checkbox :model-value="row.is_fk"
               @change="(v:any) => handleFkChange(row, v as boolean)" />
@@ -77,10 +77,13 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { FullScreen } from '@element-plus/icons-vue'
 import type { ObjectItem, Attribute } from '@/types'
 import * as api from '@/api'
+
+const { t } = useI18n()
 
 // ── 对象列表 ─────────────────────────────────────────────────────
 
@@ -93,7 +96,7 @@ async function loadObjects() {
     const res = await api.listObjects()
     objects.value = res.data
   } catch (e: any) {
-    ElMessage.error(e?.response?.data?.message || e?.message || '加载对象列表失败')
+    ElMessage.error(e?.response?.data?.message || e?.message || t('metaConfig.loadObjectsFailed'))
   } finally { objectsLoading.value = false }
 }
 
@@ -102,7 +105,7 @@ async function handleObjectSwitch(row: ObjectItem, field: 'is_gen' | 'is_full_lo
     await api.updateObject(row.id, { [field]: val })
   } catch (e: any) {
     row[field] = !val
-    ElMessage.error(e?.response?.data?.message || e?.message || '更新失败')
+    ElMessage.error(e?.response?.data?.message || e?.message || t('metaConfig.updateFailed'))
   }
 }
 
@@ -143,7 +146,7 @@ async function openFieldConfig(row: ObjectItem) {
     attributes.value = list
     takeSnapshot()
   } catch (e: any) {
-    ElMessage.error(e?.response?.data?.message || e?.message || '加载失败')
+    ElMessage.error(e?.response?.data?.message || e?.message || t('metaConfig.loadFailed'))
     attributes.value = []
   } finally { attributesLoading.value = false }
 }
@@ -181,15 +184,15 @@ function handleClearAll() {
 }
 
 async function handleSave() {
-  if (modifiedRows.value.length === 0) { ElMessage.info('没有变更'); return }
+  if (modifiedRows.value.length === 0) { ElMessage.info(t('metaConfig.noChanges')); return }
   saving.value = true
   try {
     await api.batchUpdateAttributes(modifiedRows.value.map(r => ({
       id: r.id, is_bk: r.is_bk, is_pk: r.is_pk, is_di: r.is_di, is_fk: r.is_fk,
     })))
-    ElMessage.success(`已保存 ${modifiedRows.value.length} 条`)
+    ElMessage.success(t('metaConfig.savedCount', { n: modifiedRows.value.length }))
     takeSnapshot()
-  } catch (e: any) { ElMessage.error(e?.response?.data?.message || e?.message || '保存失败') }
+  } catch (e: any) { ElMessage.error(e?.response?.data?.message || e?.message || t('metaConfig.saveFailed')) }
   finally { saving.value = false }
 }
 

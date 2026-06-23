@@ -102,11 +102,24 @@ app.include_router(db_roles.router)
 
 
 @app.get("/api/intro")
-def get_intro():
-    """返回系统介绍文档（docs/INTRO.md）"""
-    intro_path = Path(__file__).parent.parent / "docs" / "INTRO.md"
-    if intro_path.exists():
-        return {"success": True, "content": intro_path.read_text(encoding="utf-8")}
+def get_intro(lang: str = "zh-CN"):
+    """返回系统介绍文档（支持多语言）
+
+    lang: zh-CN / en
+    """
+    docs_dir = Path(__file__).parent.parent / "docs"
+    candidates = []
+    if lang.startswith("en"):
+        candidates = ["INTRO.en.md"]
+    else:
+        candidates = ["INTRO.zh-CN.md", "INTRO.md"]
+    # fallback chain
+    candidates += ["INTRO.md", "INTRO.zh-CN.md", "INTRO.en.md"]
+
+    for fname in candidates:
+        path = docs_dir / fname
+        if path.exists():
+            return {"success": True, "content": path.read_text(encoding="utf-8")}
     return {"success": False, "content": ""}
 
 

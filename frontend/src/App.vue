@@ -1,96 +1,113 @@
 <template>
-  <el-container style="min-height: 100vh">
-    <el-aside :width="collapsed ? '64px' : '220px'" class="app-sidebar">
-      <div class="sidebar-header">
-        <div v-if="!collapsed" class="logo-text">DWH Generator</div>
-        <div v-else class="logo-mini">DG</div>
-        <el-button
-          :icon="collapsed ? Expand : Fold"
-          text
-          @click="collapsed = !collapsed"
-          class="collapse-btn"
-        />
-      </div>
-      <el-menu
-        :default-active="route.path"
-        :collapse="collapsed"
-        router
-        class="sidebar-menu"
-      >
-        <el-menu-item index="/">
-          <el-icon><Monitor /></el-icon>
-          <template #title>仪表盘</template>
-        </el-menu-item>
-        <el-menu-item index="/connections">
-          <el-icon><Connection /></el-icon>
-          <template #title>数据库连接</template>
-        </el-menu-item>
-        <el-menu-item index="/meta-import">
-          <el-icon><Upload /></el-icon>
-          <template #title>元数据导入</template>
-        </el-menu-item>
-        <el-menu-item index="/meta-config">
-          <el-icon><Setting /></el-icon>
-          <template #title>字段配置</template>
-        </el-menu-item>
-        <el-menu-item index="/dv-config">
-          <el-icon><Coin /></el-icon>
-          <template #title>DV 配置</template>
-        </el-menu-item>
-        <el-sub-menu index="/generate">
-          <template #title>
-            <el-icon><MagicStick /></el-icon>
-            <span>代码生成</span>
-          </template>
-          <el-menu-item index="/generate/config">配置摘要</el-menu-item>
-          <el-menu-item index="/generate/psa">PSA Type 2</el-menu-item>
-          <el-menu-item index="/generate/dv">Data Vault 2.0</el-menu-item>
-        </el-sub-menu>
-        <el-menu-item index="/deploy">
-          <el-icon><Promotion /></el-icon>
-          <template #title>部署执行</template>
-        </el-menu-item>
-        <el-menu-item index="/logs">
-          <el-icon><Document /></el-icon>
-          <template #title>执行日志</template>
-        </el-menu-item>
-      </el-menu>
-      <div class="sidebar-spacer" />
-      <el-menu
-        :default-active="route.path"
-        :collapse="collapsed"
-        router
-        class="sidebar-menu sidebar-bottom"
-      >
-        <el-menu-item index="/intro">
-          <el-icon><InfoFilled /></el-icon>
-          <template #title>系统介绍</template>
-        </el-menu-item>
-      </el-menu>
-    </el-aside>
-    <el-container>
-      <el-header class="app-header">
-        <span class="header-title">DWH-Generator · PSA + Data Vault 2.0</span>
-        <div class="header-right">
-          <span class="header-version">v1.0</span>
+  <el-config-provider :locale="elementLocale">
+    <el-container style="min-height: 100vh">
+      <el-aside :width="collapsed ? '64px' : '220px'" class="app-sidebar">
+        <div class="sidebar-header">
+          <div v-if="!collapsed" class="logo-text">DWH Generator</div>
+          <div v-else class="logo-mini">DG</div>
           <el-button
-            :icon="isDark ? Moon : Sunny"
+            :icon="collapsed ? Expand : Fold"
             text
-            @click="toggleTheme"
-            class="theme-btn"
+            @click="collapsed = !collapsed"
+            class="collapse-btn"
           />
         </div>
-      </el-header>
-      <el-main class="app-main">
-        <router-view />
-      </el-main>
+        <el-menu
+          :default-active="route.path"
+          :collapse="collapsed"
+          router
+          class="sidebar-menu"
+        >
+          <el-menu-item index="/">
+            <el-icon><Monitor /></el-icon>
+            <template #title>{{ $t('menu.dashboard') }}</template>
+          </el-menu-item>
+          <el-menu-item index="/connections">
+            <el-icon><Connection /></el-icon>
+            <template #title>{{ $t('menu.connections') }}</template>
+          </el-menu-item>
+          <el-menu-item index="/meta-import">
+            <el-icon><Upload /></el-icon>
+            <template #title>{{ $t('menu.metaImport') }}</template>
+          </el-menu-item>
+          <el-menu-item index="/meta-config">
+            <el-icon><Setting /></el-icon>
+            <template #title>{{ $t('menu.metaConfig') }}</template>
+          </el-menu-item>
+          <el-menu-item index="/dv-config">
+            <el-icon><Coin /></el-icon>
+            <template #title>{{ $t('menu.dvConfig') }}</template>
+          </el-menu-item>
+          <el-sub-menu index="/generate">
+            <template #title>
+              <el-icon><MagicStick /></el-icon>
+              <span>{{ $t('menu.generate') }}</span>
+            </template>
+            <el-menu-item index="/generate/config">{{ $t('menu.generateConfig') }}</el-menu-item>
+            <el-menu-item index="/generate/psa">{{ $t('menu.generatePsa') }}</el-menu-item>
+            <el-menu-item index="/generate/dv">{{ $t('menu.generateDv') }}</el-menu-item>
+          </el-sub-menu>
+          <el-menu-item index="/deploy">
+            <el-icon><Promotion /></el-icon>
+            <template #title>{{ $t('menu.deploy') }}</template>
+          </el-menu-item>
+          <el-menu-item index="/logs">
+            <el-icon><Document /></el-icon>
+            <template #title>{{ $t('menu.logs') }}</template>
+          </el-menu-item>
+        </el-menu>
+        <div class="sidebar-spacer" />
+        <el-menu
+          :default-active="route.path"
+          :collapse="collapsed"
+          router
+          class="sidebar-menu sidebar-bottom"
+        >
+          <el-menu-item index="/intro">
+            <el-icon><InfoFilled /></el-icon>
+            <template #title>{{ $t('menu.intro') }}</template>
+          </el-menu-item>
+        </el-menu>
+      </el-aside>
+      <el-container>
+        <el-header class="app-header">
+          <span class="header-title">{{ $t('app.title') }}</span>
+          <div class="header-right">
+            <span class="header-version">{{ $t('app.version') }}</span>
+            <el-dropdown @command="changeLocale" trigger="click">
+              <el-button text class="lang-btn">
+                🌐 {{ currentLangLabel }}
+              </el-button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item command="zh-CN">🇨🇳 中文</el-dropdown-item>
+                  <el-dropdown-item command="en">🇺🇸 English</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+            <el-button
+              :icon="isDark ? Moon : Sunny"
+              text
+              @click="toggleTheme"
+              class="theme-btn"
+            />
+          </div>
+        </el-header>
+        <el-main class="app-main">
+          <router-view />
+        </el-main>
+      </el-container>
     </el-container>
-  </el-container>
+  </el-config-provider>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
+import { useI18n } from 'vue-i18n'
+import { setLocale } from '@/i18n'
+import zhCn from 'element-plus/es/locale/lang/zh-cn'
+import en from 'element-plus/es/locale/lang/en'
 import {
   Monitor, Connection, Upload, Setting,
   MagicStick, Promotion, Document,
@@ -109,6 +126,16 @@ function toggleTheme() {
   isDark.value = dark
   document.documentElement.classList.toggle('dark', dark)
   localStorage.setItem('theme', dark ? 'dark' : 'light')
+}
+
+// ── 语言切换 ──────────────────────────────────────────────────
+const { locale } = useI18n()
+
+const elementLocale = computed(() => locale.value === 'zh-CN' ? zhCn : en)
+const currentLangLabel = computed(() => locale.value === 'zh-CN' ? '中文' : 'English')
+
+function changeLocale(lang: string) {
+  setLocale(lang)
 }
 </script>
 
@@ -176,6 +203,9 @@ function toggleTheme() {
 }
 .theme-btn {
   font-size: 18px;
+}
+.lang-btn {
+  font-size: 13px;
 }
 .app-main {
   background-color: var(--el-bg-color-page);

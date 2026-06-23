@@ -30,8 +30,24 @@ const router = createRouter({
     },
     {
       path: '/generate',
-      name: 'generate',
-      component: () => import('@/views/GenerateView.vue'),
+      redirect: '/generate/config',
+      children: [
+        {
+          path: 'config',
+          name: 'generateConfig',
+          component: () => import('@/views/GenerateConfigView.vue'),
+        },
+        {
+          path: 'psa',
+          name: 'generatePsa',
+          component: () => import('@/views/GeneratePsaView.vue'),
+        },
+        {
+          path: 'dv',
+          name: 'generateDv',
+          component: () => import('@/views/GenerateDvView.vue'),
+        },
+      ],
     },
     {
       path: '/deploy',

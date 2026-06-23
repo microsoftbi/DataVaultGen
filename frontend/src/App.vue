@@ -37,10 +37,15 @@
           <el-icon><Coin /></el-icon>
           <template #title>DV 配置</template>
         </el-menu-item>
-        <el-menu-item index="/generate">
-          <el-icon><MagicStick /></el-icon>
-          <template #title>代码生成</template>
-        </el-menu-item>
+        <el-sub-menu index="/generate">
+          <template #title>
+            <el-icon><MagicStick /></el-icon>
+            <span>代码生成</span>
+          </template>
+          <el-menu-item index="/generate/config">配置摘要</el-menu-item>
+          <el-menu-item index="/generate/psa">PSA Type 2</el-menu-item>
+          <el-menu-item index="/generate/dv">Data Vault 2.0</el-menu-item>
+        </el-sub-menu>
         <el-menu-item index="/deploy">
           <el-icon><Promotion /></el-icon>
           <template #title>部署执行</template>

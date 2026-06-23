@@ -71,7 +71,15 @@
     <el-container>
       <el-header class="app-header">
         <span class="header-title">DWH-Generator · PSA + Data Vault 2.0</span>
-        <span class="header-version">v1.0</span>
+        <div class="header-right">
+          <span class="header-version">v1.0</span>
+          <el-button
+            :icon="isDark ? Moon : Sunny"
+            text
+            @click="toggleTheme"
+            class="theme-btn"
+          />
+        </div>
       </el-header>
       <el-main class="app-main">
         <router-view />
@@ -87,10 +95,21 @@ import {
   Monitor, Connection, Upload, Setting,
   MagicStick, Promotion, Document,
   Expand, Fold, Coin, InfoFilled,
+  Sunny, Moon,
 } from '@element-plus/icons-vue'
 
 const route = useRoute()
 const collapsed = ref(false)
+
+// ── 主题切换 ──────────────────────────────────────────────────
+const isDark = ref(document.documentElement.classList.contains('dark'))
+
+function toggleTheme() {
+  const dark = !isDark.value
+  isDark.value = dark
+  document.documentElement.classList.toggle('dark', dark)
+  localStorage.setItem('theme', dark ? 'dark' : 'light')
+}
 </script>
 
 <style scoped>
@@ -146,9 +165,17 @@ const collapsed = ref(false)
   font-size: 14px;
   color: var(--el-text-color-secondary);
 }
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
 .header-version {
   font-size: 12px;
   color: var(--el-text-color-placeholder);
+}
+.theme-btn {
+  font-size: 18px;
 }
 .app-main {
   background-color: var(--el-bg-color-page);

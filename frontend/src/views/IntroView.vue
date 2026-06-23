@@ -9,6 +9,7 @@
 import { ref, onMounted } from 'vue'
 import { marked } from 'marked'
 import hljs from 'highlight.js'
+import 'highlight.js/styles/github-dark.css'
 
 // 配置 marked 使用 highlight.js
 marked.setOptions({

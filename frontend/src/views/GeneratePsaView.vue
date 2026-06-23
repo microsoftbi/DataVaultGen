@@ -46,7 +46,7 @@
 import { ref, computed, onMounted, nextTick, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import hljs from 'highlight.js'
-import 'highlight.js/styles/github.css'
+import 'highlight.js/styles/github-dark.css'
 import {
   generatePsaStg, generatePsaCdc, generatePsaLog,
   generatePsaViews, generatePsaUsps, generatePsaAll, generatePsaFlow,
@@ -122,7 +122,7 @@ onMounted(() => { onTabChange('stg') })
 }
 .sql-wrapper { min-height: 100px; }
 .sql-code {
-  margin: 16px 0 0; padding: 16px; border-radius: 4px; background: #f6f8fa;
+  margin: 16px 0 0; padding: 16px; border-radius: 4px; background: var(--el-fill-color);
   overflow-x: auto; max-height: 600px; overflow-y: auto;
   font-size: 13px; line-height: 1.6;
 }

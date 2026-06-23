@@ -64,3 +64,15 @@ CORE
 点击左侧：元数据导入
 
 依次指定，OLTP服务器是哪一个，哪个表需要导入，表里的哪些字段需要导入。
+
+
+## STAGE层的说明
+
+STAGE层包含以下对象：
+- STG表：数据从源表1对1加载过来的表。
+- CDC表：保存当此加载的变更数据，根据STG表和LOG表的比对。
+- LOG表：保存所有历史数据。
+- MTA视图：从STG表，加了supporting fields。
+- LOG Current视图：从LOG表，取出最新的数据。就是LOG表跟LOG表做一次INNER JOIN，用HK和MAX LOAD_DTS来判断。
+- 存储过程
+- 调度脚本

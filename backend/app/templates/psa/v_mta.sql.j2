@@ -26,7 +26,7 @@ SELECT
     {% for f in table.di_fields %}
     [{{ f.field_name }}]{% if not loop.last %},{% endif %}
     {% endfor %}
-FROM [{{ table.schema_name }}].[{{ table.object_name }}]
+FROM [{{ table.schema_name }}].[{{ table.object_name }}_STG]
 GO
 
 {% endfor %}

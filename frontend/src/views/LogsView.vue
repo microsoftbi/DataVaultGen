@@ -49,8 +49,47 @@
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="message" label="消息" min-width="300" show-overflow-tooltip />
+      <el-table-column prop="message" label="消息" min-width="300" show-overflow-tooltip>
+        <template #default="{ row }">
+          <el-link type="primary" underline @click="showMessageDetail(row)">{{ row.message }}</el-link>
+        </template>
+      </el-table-column>
     </el-table>
+
+    <!-- 消息详情弹窗 -->
+    <el-dialog
+      v-model="detailVisible"
+      title="消息详情"
+      width="700px"
+      :close-on-click-modal="false"
+      top="5vh"
+    >
+      <el-form v-if="detailRow" label-width="80px">
+        <el-form-item label="时间">
+          <el-text>{{ detailRow.created_at }}</el-text>
+        </el-form-item>
+        <el-form-item label="来源">
+          <el-text>{{ detailRow.log_source || '-' }}</el-text>
+        </el-form-item>
+        <el-form-item label="类型">
+          <el-tag :type="logTypeTag(detailRow.log_type)" size="small">
+            {{ logTypeLabel(detailRow.log_type) }}
+          </el-tag>
+        </el-form-item>
+        <el-form-item label="消息">
+          <el-input
+            :model-value="detailRow.message || ''"
+            type="textarea"
+            :rows="12"
+            readonly
+            input-style="font-family: 'SF Mono', 'Fira Code', monospace; font-size: 13px; line-height: 1.6;"
+          />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="detailVisible = false">关闭</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -62,6 +101,8 @@ import { listLogs, clearLogs } from '@/api'
 
 const logs = ref<LogEntry[]>([])
 const loading = ref(false)
+const detailVisible = ref(false)
+const detailRow = ref<LogEntry | null>(null)
 
 const summary = reactive({
   total: 0,
@@ -82,6 +123,11 @@ function logTypeLabel(type: string) {
   if (type === 'E') return '错误'
   if (type === 'W') return '警告'
   return type
+}
+
+function showMessageDetail(row: LogEntry) {
+  detailRow.value = row
+  detailVisible.value = true
 }
 
 function calcSummary() {

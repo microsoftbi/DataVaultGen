@@ -4,26 +4,10 @@
       <h2>PSA Type 2 代码生成</h2>
     </div>
 
-    <el-card shadow="never" class="actions-card">
-      <template #header>
-        <span class="section-title">生成按钮</span>
-      </template>
-      <el-row :gutter="16">
-        <el-col v-for="btn in psaButtons" :key="btn.key" :span="3">
-          <el-button :type="btn.type || 'default'"
-            :loading="loadingMap[btn.key]" :disabled="loadingAny"
-            style="width: 100%" @click="handleGenerate(btn.key)">
-            {{ btn.label }}
-          </el-button>
-        </el-col>
-      </el-row>
-    </el-card>
-
-    <!-- SQL 预览 -->
     <el-card shadow="never" class="preview-card">
       <template #header>
         <div class="card-header">
-          <span class="section-title">SQL 预览</span>
+          <span class="section-title">选择生成类型</span>
           <div class="preview-actions">
             <el-tag v-if="sqlResult" size="small" type="info" class="line-count">
               {{ lineCount }} lines
@@ -38,16 +22,28 @@
         </div>
       </template>
 
-      <div v-if="!sqlResult" class="placeholder-text">
-        点击上方按钮生成 PSA SQL 代码...
+      <el-tabs v-model="activeTab" type="card" @tab-change="onTabChange">
+        <el-tab-pane label="STG" name="stg" />
+        <el-tab-pane label="CDC" name="cdc" />
+        <el-tab-pane label="LOG" name="log" />
+        <el-tab-pane label="视图" name="views" />
+        <el-tab-pane label="存储过程" name="usps" />
+        <el-tab-pane label="PSA 全部" name="all" />
+        <el-tab-pane label="PSA 流程" name="flow" />
+      </el-tabs>
+
+      <div v-if="!sqlResult && !generating" class="placeholder-text">
+        选择上方标签自动生成对应 SQL 代码...
       </div>
-      <pre v-else class="sql-code"><code ref="codeRef" class="language-sql">{{ sqlResult }}</code></pre>
+      <div v-loading="generating" class="sql-wrapper">
+        <pre v-if="sqlResult" class="sql-code"><code ref="codeRef" class="language-sql">{{ sqlResult }}</code></pre>
+      </div>
     </el-card>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, nextTick, watch } from 'vue'
+import { ref, computed, onMounted, nextTick, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import hljs from 'highlight.js'
 import 'highlight.js/styles/github.css'
@@ -58,22 +54,9 @@ import {
 
 const codeRef = ref<HTMLElement | null>(null)
 const sqlResult = ref('')
-const loadingMap = reactive<Record<string, boolean>>({})
+const generating = ref(false)
 const copySuccess = ref(false)
-
-interface GenerateButton { key: string; label: string; type?: string }
-
-const psaButtons: GenerateButton[] = [
-  { key: 'stg', label: 'STG' },
-  { key: 'cdc', label: 'CDC' },
-  { key: 'log', label: 'LOG' },
-  { key: 'views', label: '视图' },
-  { key: 'usps', label: '存储过程' },
-  { key: 'all', label: 'PSA 全部', type: 'primary' },
-  { key: 'flow', label: 'PSA 流程' },
-]
-
-const loadingAny = computed(() => psaButtons.some((b) => loadingMap[b.key]))
+const activeTab = ref('stg')
 
 const lineCount = computed(() => {
   const c = sqlResult.value; return c ? c.split('\n').length : 0
@@ -90,20 +73,19 @@ watch(sqlResult, async () => {
   if (codeRef.value) hljs.highlightElement(codeRef.value)
 })
 
-async function handleGenerate(key: string) {
-  const apiFn = apiMap[key]
+async function onTabChange(tabName: string | number) {
+  const apiFn = apiMap[tabName as string]
   if (!apiFn) return
-
-  loadingMap[key] = true
+  generating.value = true
+  sqlResult.value = ''
   try {
     const res = await apiFn()
     const sql = res.data?.sql || ''
     sqlResult.value = sql
-    if (sql) ElMessage.success('生成成功')
-    else ElMessage.warning('生成结果为空')
+    if (!sql) ElMessage.warning('生成结果为空')
   } catch (e: any) {
     ElMessage.error('生成失败: ' + (e?.response?.data?.message || e.message))
-  } finally { loadingMap[key] = false }
+  } finally { generating.value = false }
 }
 
 function downloadSql() {
@@ -111,7 +93,7 @@ function downloadSql() {
   const blob = new Blob([sqlResult.value], { type: 'text/plain;charset=utf-8' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
-  a.href = url; a.download = `psa_${new Date().toISOString().slice(0, 10).replace(/-/g, '')}.sql`
+  a.href = url; a.download = `psa_${activeTab.value}_${new Date().toISOString().slice(0, 10).replace(/-/g, '')}.sql`
   a.click(); URL.revokeObjectURL(url)
 }
 
@@ -124,13 +106,13 @@ async function copySql() {
   } catch { ElMessage.error('复制失败') }
 }
 
-onMounted(() => { /* no config needed here */ })
+onMounted(() => { onTabChange('stg') })
 </script>
 
 <style scoped>
 .generate-psa-view { max-width: 1200px; margin: 0 auto; }
 .page-header h2 { margin: 0 0 16px 0; font-size: 20px; }
-.actions-card, .preview-card { margin-bottom: 16px; }
+.preview-card { margin-bottom: 16px; }
 .card-header { display: flex; justify-content: space-between; align-items: center; }
 .section-title { font-weight: 600; font-size: 15px; }
 .preview-actions { display: flex; align-items: center; gap: 8px; }
@@ -138,8 +120,9 @@ onMounted(() => { /* no config needed here */ })
 .placeholder-text {
   padding: 40px 0; text-align: center; color: var(--el-text-color-placeholder); font-size: 14px;
 }
+.sql-wrapper { min-height: 100px; }
 .sql-code {
-  margin: 0; padding: 16px; border-radius: 4px; background: #f6f8fa;
+  margin: 16px 0 0; padding: 16px; border-radius: 4px; background: #f6f8fa;
   overflow-x: auto; max-height: 600px; overflow-y: auto;
   font-size: 13px; line-height: 1.6;
 }

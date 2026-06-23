@@ -4,26 +4,10 @@
       <h2>Data Vault 2.0 代码生成</h2>
     </div>
 
-    <el-card shadow="never" class="actions-card">
-      <template #header>
-        <span class="section-title">生成按钮</span>
-      </template>
-      <el-row :gutter="16">
-        <el-col v-for="btn in dvButtons" :key="btn.key" :span="3">
-          <el-button :type="btn.type || 'default'"
-            :loading="loadingMap[btn.key]" :disabled="loadingAny"
-            style="width: 100%" @click="handleGenerate(btn.key)">
-            {{ btn.label }}
-          </el-button>
-        </el-col>
-      </el-row>
-    </el-card>
-
-    <!-- SQL 预览 -->
     <el-card shadow="never" class="preview-card">
       <template #header>
         <div class="card-header">
-          <span class="section-title">SQL 预览</span>
+          <span class="section-title">选择生成类型</span>
           <div class="preview-actions">
             <el-tag v-if="sqlResult" size="small" type="info" class="line-count">
               {{ lineCount }} lines
@@ -38,16 +22,28 @@
         </div>
       </template>
 
-      <div v-if="!sqlResult" class="placeholder-text">
-        点击上方按钮生成 Data Vault 2.0 SQL 代码...
+      <el-tabs v-model="activeTab" type="card" @tab-change="onTabChange">
+        <el-tab-pane label="HUB 表" name="dv_hub" />
+        <el-tab-pane label="SAT 表" name="dv_sat" />
+        <el-tab-pane label="LINK 表" name="dv_link" />
+        <el-tab-pane label="USP_HUB" name="dv_usp_hub" />
+        <el-tab-pane label="USP_SAT" name="dv_usp_sat" />
+        <el-tab-pane label="USP_LINK" name="dv_usp_link" />
+        <el-tab-pane label="DV 全部" name="dv_all" />
+      </el-tabs>
+
+      <div v-if="!sqlResult && !generating" class="placeholder-text">
+        选择上方标签自动生成对应 SQL 代码...
       </div>
-      <pre v-else class="sql-code"><code ref="codeRef" class="language-sql">{{ sqlResult }}</code></pre>
+      <div v-loading="generating" class="sql-wrapper">
+        <pre v-if="sqlResult" class="sql-code"><code ref="codeRef" class="language-sql">{{ sqlResult }}</code></pre>
+      </div>
     </el-card>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, nextTick, watch } from 'vue'
+import { ref, computed, onMounted, nextTick, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import hljs from 'highlight.js'
 import 'highlight.js/styles/github.css'
@@ -58,22 +54,9 @@ import {
 
 const codeRef = ref<HTMLElement | null>(null)
 const sqlResult = ref('')
-const loadingMap = reactive<Record<string, boolean>>({})
+const generating = ref(false)
 const copySuccess = ref(false)
-
-interface GenerateButton { key: string; label: string; type?: string }
-
-const dvButtons: GenerateButton[] = [
-  { key: 'dv_hub', label: 'HUB 表' },
-  { key: 'dv_sat', label: 'SAT 表' },
-  { key: 'dv_link', label: 'LINK 表' },
-  { key: 'dv_usp_hub', label: 'USP_HUB' },
-  { key: 'dv_usp_sat', label: 'USP_SAT' },
-  { key: 'dv_usp_link', label: 'USP_LINK' },
-  { key: 'dv_all', label: 'DV 全部', type: 'primary' },
-]
-
-const loadingAny = computed(() => dvButtons.some((b) => loadingMap[b.key]))
+const activeTab = ref('dv_hub')
 
 const lineCount = computed(() => {
   const c = sqlResult.value; return c ? c.split('\n').length : 0
@@ -90,20 +73,19 @@ watch(sqlResult, async () => {
   if (codeRef.value) hljs.highlightElement(codeRef.value)
 })
 
-async function handleGenerate(key: string) {
-  const apiFn = apiMap[key]
+async function onTabChange(tabName: string | number) {
+  const apiFn = apiMap[tabName as string]
   if (!apiFn) return
-
-  loadingMap[key] = true
+  generating.value = true
+  sqlResult.value = ''
   try {
     const res = await apiFn()
     const sql = res.data?.sql || ''
     sqlResult.value = sql
-    if (sql) ElMessage.success('生成成功')
-    else ElMessage.warning('生成结果为空')
+    if (!sql) ElMessage.warning('生成结果为空')
   } catch (e: any) {
     ElMessage.error('生成失败: ' + (e?.response?.data?.message || e.message))
-  } finally { loadingMap[key] = false }
+  } finally { generating.value = false }
 }
 
 function downloadSql() {
@@ -111,7 +93,7 @@ function downloadSql() {
   const blob = new Blob([sqlResult.value], { type: 'text/plain;charset=utf-8' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
-  a.href = url; a.download = `dv_${new Date().toISOString().slice(0, 10).replace(/-/g, '')}.sql`
+  a.href = url; a.download = `dv_${activeTab.value}_${new Date().toISOString().slice(0, 10).replace(/-/g, '')}.sql`
   a.click(); URL.revokeObjectURL(url)
 }
 
@@ -123,12 +105,14 @@ async function copySql() {
     setTimeout(() => { copySuccess.value = false }, 2000)
   } catch { ElMessage.error('复制失败') }
 }
+
+onMounted(() => { onTabChange('dv_hub') })
 </script>
 
 <style scoped>
 .generate-dv-view { max-width: 1200px; margin: 0 auto; }
 .page-header h2 { margin: 0 0 16px 0; font-size: 20px; }
-.actions-card, .preview-card { margin-bottom: 16px; }
+.preview-card { margin-bottom: 16px; }
 .card-header { display: flex; justify-content: space-between; align-items: center; }
 .section-title { font-weight: 600; font-size: 15px; }
 .preview-actions { display: flex; align-items: center; gap: 8px; }
@@ -136,8 +120,9 @@ async function copySql() {
 .placeholder-text {
   padding: 40px 0; text-align: center; color: var(--el-text-color-placeholder); font-size: 14px;
 }
+.sql-wrapper { min-height: 100px; }
 .sql-code {
-  margin: 0; padding: 16px; border-radius: 4px; background: #f6f8fa;
+  margin: 16px 0 0; padding: 16px; border-radius: 4px; background: #f6f8fa;
   overflow-x: auto; max-height: 600px; overflow-y: auto;
   font-size: 13px; line-height: 1.6;
 }

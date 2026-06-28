@@ -55,6 +55,11 @@ const router = createRouter({
       component: () => import('@/views/DeployView.vue'),
     },
     {
+      path: '/data-preview',
+      name: 'dataPreview',
+      component: () => import('@/views/DataPreviewView.vue'),
+    },
+    {
       path: '/logs',
       name: 'logs',
       component: () => import('@/views/LogsView.vue'),

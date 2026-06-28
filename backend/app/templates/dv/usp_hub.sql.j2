@@ -2,67 +2,77 @@ USE [{{ core_db_name }}]
 GO
 
 {% for hub in dv_hubs %}
+IF OBJECT_ID(N'[dbo].[USP_{{ hub.table_name }}]', N'P') IS NOT NULL
+    DROP PROCEDURE [dbo].[USP_{{ hub.table_name }}]
+GO
+
 CREATE PROCEDURE [dbo].[USP_{{ hub.table_name }}]
 AS
 BEGIN
-    DECLARE @LOGSOURCE AS NVARCHAR(100)
-    SET @LOGSOURCE = N'{{ core_db_name }}.dbo.USP_{{ hub.table_name }}'
+    DECLARE @LOGSOURCE AS NVARCHAR(100);
+    SET @LOGSOURCE = N'[{{ core_db_name }}].[dbo].[USP_{{ hub.table_name }}]';
 
-    EXEC META.dbo.USP_WRITELOG N'Start to load {{ hub.table_name }}', @LOGSOURCE, N'N'
+    EXEC META.dbo.USP_WRITELOG N'Start to load [{{ core_db_name }}].[dbo].[{{ hub.table_name }}]',
+                               @LOGSOURCE,
+                               N'N';
 
     BEGIN TRY
-        BEGIN TRAN
-            INSERT INTO [dbo].[{{ hub.table_name }}]
-            (
-                [LOAD_DTS],
-                [CDC_OPERATION_CODE],
-                [REC_SRC],
-                [HK],
-                {% for f in hub.pk_fields %}
-                [{{ f.field_name }}]{% if not loop.last %},{% endif %}
-                {% endfor %}
-            )
-            SELECT
-                PSA.[LOAD_DTS],
-                'I' AS CDC_OPERATION_CODE,
-                '{{ hub.record_source }}' AS REC_SRC,
-                PSA.[HK],
-                {% for f in hub.pk_fields %}
-                PSA.[{{ f.psa_field_name }}] AS [{{ f.field_name }}]{% if not loop.last %},{% endif %}
-                {% endfor %}
-            FROM
-            (
-                SELECT
-                    [LOAD_DTS],
-                    CONVERT(CHAR(32), HASHBYTES('MD5',
-                        {% for f in hub.pk_fields %}
-                        ISNULL(TRIM(CONVERT(NVARCHAR(255), [{{ f.psa_field_name }}])), N'') + N'{{ hash_tail }}'
-                        {% if not loop.last %} + {% endif %}
-                        {% endfor %}
-                    ), 2) AS HK,
-                    {% for f in hub.pk_fields %}
-                    [{{ f.psa_field_name }}],
-                    {% endfor %}
-                    ROW_NUMBER() OVER (
-                        PARTITION BY {% for f in hub.pk_fields %}ISNULL(TRIM(CONVERT(NVARCHAR(255), [{{ f.psa_field_name }}])), N''){% if not loop.last %} + {% endif %}{% endfor %}
-                        ORDER BY LOAD_DTS
-                    ) AS RN
-                FROM [{{ psa_db_name }}].[{{ hub.psa_schema_name }}].[{{ hub.psa_table_name }}_LOG]
-                WHERE IS_CURRENT = 1
-            ) PSA
-            LEFT JOIN [dbo].[{{ hub.table_name }}] T ON T.HK = PSA.HK
-            WHERE PSA.RN = 1 AND T.HK IS NULL
+        BEGIN TRAN;
 
-        COMMIT TRAN
-        EXEC META.dbo.USP_WRITELOG N'Finish to load {{ hub.table_name }}', @LOGSOURCE, N'N'
+        INSERT INTO [{{ core_db_name }}].[DBO].[{{ hub.table_name }}]
+        (
+            [LOAD_DTS],
+            [CDC_OPERATION_CODE],
+            [REC_SRC],
+            [HK],
+            {% for f in hub.pk_fields %}
+            [{{ f.field_name }}]{% if not loop.last %},{% endif %}
+            {% endfor %}
+        )
+        SELECT PSA.[LOAD_DTS],
+               PSA.[CDC_OPERATION_CODE],
+               PSA.[REC_SRC],
+               PSA.[HK],
+               {% for f in hub.pk_fields %}
+               PSA.[{{ f.field_name }}]{% if not loop.last %},{% endif %}
+               {% endfor %}
+        FROM
+        (
+            SELECT LOAD_DTS,
+                   CDC_OPERATION_CODE,
+                   REC_SRC,
+                   CONVERT(CHAR(32), HASHBYTES('MD5',
+                       {% for f in hub.pk_fields %}
+                       ISNULL(TRIM(CONVERT(NVARCHAR(255), [{{ f.psa_field_name }}])) + N'{{ hash_tail }}', N''){% if not loop.last %} + {% endif %}
+                       {% endfor %}
+                   ), 2) AS HK,
+                   {% for f in hub.pk_fields %}
+                   [{{ f.psa_field_name }}] AS [{{ f.field_name }}],
+                   {% endfor %}
+                   ROW_NUMBER() OVER (PARTITION BY
+                       {% for f in hub.pk_fields %}
+                       ISNULL(TRIM(CONVERT(NVARCHAR(255), [{{ f.psa_field_name }}])), N''){% if not loop.last %} + {% endif %}
+                       {% endfor %}
+                       ORDER BY LOAD_DTS ASC) AS ROW_NR
+            FROM [{{ psa_db_name }}].[{{ hub.psa_schema_name }}].[{{ hub.psa_table_name }}_LOG]
+        ) PSA
+            LEFT JOIN [{{ core_db_name }}].dbo.[{{ hub.table_name }}] [TARGET]
+                ON {% for f in hub.pk_fields %}ISNULL(TRIM(CONVERT(NVARCHAR(255), PSA.[{{ f.field_name }}])), N''){% if not loop.last %} + {% endif %}{% endfor %} = {% for f in hub.pk_fields %}ISNULL(TRIM(CONVERT(NVARCHAR(255), [TARGET].[{{ f.field_name }}])), N''){% if not loop.last %} + {% endif %}{% endfor %}
+        WHERE [TARGET].HK IS NULL
+              AND ROW_NR = 1;
+
+        EXEC META.dbo.USP_WRITELOG N'Finish to load [{{ core_db_name }}].[dbo].[{{ hub.table_name }}]',
+                                   @LOGSOURCE,
+                                   N'N';
+        COMMIT TRAN;
     END TRY
     BEGIN CATCH
-        ROLLBACK TRAN
-        DECLARE @ERROR_MESSAGE AS NVARCHAR(4000)
-        SET @ERROR_MESSAGE = N'Failed to load {{ hub.table_name }}' + ISNULL(ERROR_MESSAGE(), '')
-        EXEC META.dbo.USP_WRITELOG @ERROR_MESSAGE, @LOGSOURCE, N'E'
-    END CATCH
-END
+        ROLLBACK TRAN;
+        DECLARE @ERROR_MESSAGE AS NVARCHAR(4000);
+        SET @ERROR_MESSAGE = N'Failed to load [{{ core_db_name }}].[dbo].[{{ hub.table_name }}]' + ISNULL(ERROR_MESSAGE(), '');
+        EXEC META.dbo.USP_WRITELOG @ERROR_MESSAGE, @LOGSOURCE, N'E';
+    END CATCH;
+END;
 GO
 
 {% endfor %}

@@ -18,6 +18,10 @@
             <el-button v-if="sqlResult" size="small" @click="downloadSql">
               {{ $t('generate.downloadSql') }}
             </el-button>
+            <el-button v-if="sqlResult" size="small" type="primary"
+                       :loading="executing" @click="executeCurrentSql">
+              {{ $t('generate.executeSql') }}
+            </el-button>
           </div>
         </div>
       </template>
@@ -45,12 +49,13 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, nextTick, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import hljs from 'highlight.js'
 import 'highlight.js/styles/github-dark.css'
 import {
   generateDvHub, generateDvSat, generateDvLink,
   generateDvUspHub, generateDvUspSat, generateDvUspLink, generateDvAll,
+  executeSql,
 } from '@/api'
 
 const { t } = useI18n()
@@ -58,6 +63,7 @@ const { t } = useI18n()
 const codeRef = ref<HTMLElement | null>(null)
 const sqlResult = ref('')
 const generating = ref(false)
+const executing = ref(false)
 const copySuccess = ref(false)
 const activeTab = ref('dv_hub')
 
@@ -107,6 +113,31 @@ async function copySql() {
     copySuccess.value = true; ElMessage.success(t('generate.copied'))
     setTimeout(() => { copySuccess.value = false }, 2000)
   } catch { ElMessage.error(t('generate.copyFailed')) }
+}
+
+async function executeCurrentSql() {
+  if (!sqlResult.value) return
+  try {
+    await ElMessageBox.confirm(
+      t('deploy.confirmDeploy', { name: 'CORE · ' + t('generate.dvTabs.' + activeTab.value.replace('dv_', '')) }),
+      t('common.pleaseConfirm'),
+      { confirmButtonText: t('common.confirm'), cancelButtonText: t('common.cancel'), type: 'warning' }
+    )
+  } catch { return }
+
+  executing.value = true
+  try {
+    const res = await executeSql(sqlResult.value, 'CORE')
+    if (res.data?.success) {
+      ElMessage.success(t('deploy.deploySuccess'))
+    } else {
+      ElMessage.error(t('deploy.deployFailed') + ': ' + (res.data?.message || ''))
+    }
+  } catch (e: any) {
+    ElMessage.error(t('deploy.deployFailed') + ': ' + (e?.response?.data?.message || e.message))
+  } finally {
+    executing.value = false
+  }
 }
 
 onMounted(() => { onTabChange('dv_hub') })

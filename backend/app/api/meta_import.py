@@ -2,7 +2,7 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from app.database import get_meta_session
-from app.models.meta import Attribute
+from app.models.meta import Attribute, DatabaseRole, ConnectionConfig
 from app.schemas import MetaImportRequest, AttributeResponse, AttributeUpdate, AttributeBatchUpdate
 from app.services.meta_service import get_source_tables, get_source_columns, import_table_meta, ensure_gen_list
 
@@ -13,31 +13,64 @@ class BulkImportRequest(BaseModel):
     conn_id: int
     tables: list[dict]  # [{table_schema, table_name}]
     record_source: str = None
+    database_name: str = None
+
+
+@router.get("/oltp-source")
+def get_oltp_source():
+    """获取 OLTP 角色绑定的源信息（连接ID + 数据库名）"""
+    session = get_meta_session()
+    try:
+        role = session.query(DatabaseRole).filter(DatabaseRole.role_name == "OLTP").first()
+        if not role:
+            raise HTTPException(404, "OLTP 角色未配置，请先在 数据源连接 页面完成数据库角色绑定")
+
+        conn = session.query(ConnectionConfig).filter(ConnectionConfig.id == role.conn_id).first()
+        if not conn:
+            raise HTTPException(404, f"OLTP 角色绑定的连接 (ID={role.conn_id}) 已被删除，请重新配置")
+
+        return {
+            "success": True,
+            "conn_id": role.conn_id,
+            "database_name": role.database_name,
+            "connection_name": conn.name,
+            "host": conn.host,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(500, f"获取 OLTP 源信息失败: {e}")
+    finally:
+        session.close()
 
 
 @router.get("/tables")
-def list_source_tables(conn_id: int):
+def list_source_tables(conn_id: int, database_name: str = None):
     """获取源库的所有表"""
     try:
-        tables = get_source_tables(conn_id)
+        tables = get_source_tables(conn_id, database_name=database_name)
         return {"success": True, "tables": tables}
     except ValueError as e:
         raise HTTPException(404, str(e))
+    except Exception as e:
+        raise HTTPException(500, f"获取源表列表失败: {e}")
 
 
 @router.get("/columns")
-def list_source_columns(conn_id: int, table_schema: str, table_name: str):
+def list_source_columns(conn_id: int, table_schema: str, table_name: str, database_name: str = None):
     """获取指定表的列信息"""
     try:
-        columns = get_source_columns(conn_id, table_schema, table_name)
+        columns = get_source_columns(conn_id, table_schema, table_name, database_name=database_name)
         return {"success": True, "columns": columns}
     except ValueError as e:
         raise HTTPException(404, str(e))
+    except Exception as e:
+        raise HTTPException(500, f"获取列信息失败: {e}")
 
 
 @router.post("/import")
 def import_meta(data: MetaImportRequest):
-    """导入表元数据到 META 库（可指定 columns 筛选导入列）"""
+    """导入表元数据到 META 库（可指定 columns / database_name 筛选导入列）"""
     session = get_meta_session()
     try:
         count, skipped = import_table_meta(
@@ -47,6 +80,7 @@ def import_meta(data: MetaImportRequest):
             table_name=data.table_name,
             record_source=data.record_source,
             selected_columns=data.columns,
+            database_name=data.database_name,
         )
         # 确保在对象列表中
         try:
@@ -76,6 +110,7 @@ def import_meta_bulk(data: BulkImportRequest):
                 table_schema=tbl["table_schema"],
                 table_name=tbl["table_name"],
                 record_source=data.record_source,
+                database_name=data.database_name,
             )
             ensure_gen_list(session, table_name=tbl["table_name"], schema_name=tbl["table_schema"])
             total_imported += count

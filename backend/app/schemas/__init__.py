@@ -37,7 +37,7 @@ class ConnectionResponse(BaseModel):
     db_type: str
     host: str
     port: int
-    database_name: str
+    database_name: Optional[str] = None
     username: str
     is_meta: bool
     is_source: bool
@@ -77,6 +77,7 @@ class MetaImportRequest(BaseModel):
     table_name: str
     record_source: Optional[str] = None
     columns: Optional[list[str]] = None  # 指定要导入的列名，不传则全部导入
+    database_name: Optional[str] = None
 
 
 class AttributeUpdate(BaseModel):
@@ -179,6 +180,11 @@ class DeployRequest(BaseModel):
     conn_id: int
     sql: str
     object_type: Optional[str] = "all"  # all | tables | views | procs
+
+
+class ExecuteSqlRequest(BaseModel):
+    sql: str
+    role: str = "STAGE"  # STAGE | CORE
 
 
 # ── 配置 ──────────────────────────────────────────────────────

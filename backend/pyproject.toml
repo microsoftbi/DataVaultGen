@@ -1,0 +1,9 @@
+[project]
+name = "dwh-generator-backend"
+version = "1.0.0"
+description = "DWH-Generator Backend"
+requires-python = ">=3.11"
+dependencies = []
+
+[tool.setuptools.packages.find]
+include = ["app*"]

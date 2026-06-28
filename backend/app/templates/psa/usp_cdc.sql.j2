@@ -14,94 +14,172 @@ BEGIN
 
     EXEC META.dbo.USP_WRITELOG N'Start to load {{ table.object_name }}_CDC', @LOGSOURCE, N'N'
 
+    TRUNCATE TABLE [{{ table.schema_name }}].[{{ table.object_name }}_CDC]
+
     BEGIN TRY
         BEGIN TRAN
-            TRUNCATE TABLE [{{ table.schema_name }}].[{{ table.object_name }}_CDC]
-
             INSERT INTO [{{ table.schema_name }}].[{{ table.object_name }}_CDC]
             (
-                [CDC_OPERATION_CODE],
                 [LOAD_DTS],
+                [SEQUENCE_NO],
+                [CDC_OPERATION_CODE],
                 [REC_SRC],
                 [REC_PATH],
                 [TRANSFER_DTS],
+                [LOAD_TYPE],
                 [HK],
+                [HD],
                 [HF],
-                [INSERT_TIME],
                 {% for f in table.pk_fields %}
                 [{{ f.field_name }}],
                 {% endfor %}
                 {% for f in table.bk_fields %}
                 [{{ f.field_name }}],
                 {% endfor %}
+                {% for f in table.fk_fields %}
+                [{{ f.field_name }}],
+                {% endfor %}
                 {% for f in table.di_fields %}
-                [{{ f.field_name }}]
+                [{{ f.field_name }}]{% if not loop.last %},{% endif %}
                 {% endfor %}
             )
             SELECT
+                Mta.LOAD_DTS,
+                IIF(Mta.SOURCE_ENTITY = 'HDA', 0, 1) AS SEQUENCE_NO,
                 CASE
-                    WHEN LAG_HF IS NULL THEN 'I'
-                    WHEN LAG_HF <> HF THEN 'U'
-                    WHEN LEAD IS NULL THEN 'D'
-                    ELSE 'N'
+                    WHEN Mta.LEAD_HF IS NULL
+                        AND Mta.SOURCE_ENTITY = 'HDA'
+                        AND MAX_LTS.LOAD_TYPE = 'FULL' THEN 'D'
+                    WHEN Mta.LAG_HF IS NULL
+                        AND Mta.SOURCE_ENTITY = 'CDC' THEN 'I'
+                    WHEN Mta.LAG_HF <> Mta.HF
+                        AND Mta.LAG_HF IS NOT NULL
+                        AND Mta.SOURCE_ENTITY = 'CDC' THEN 'U'
+                    ELSE ''
                 END AS CDC_OPERATION_CODE,
-                GETDATE() AS LOAD_DTS,
-                '{{ table.record_source }}' AS REC_SRC,
-                '{{ table.schema_name }}.{{ table.object_name }}' AS REC_PATH,
-                GETDATE() AS TRANSFER_DTS,
-                HK,
-                HF,
-                GETDATE() AS INSERT_TIME,
+                Mta.REC_SRC,
+                Mta.REC_PATH,
+                Mta.TRANSFER_DTS,
+                Mta.LOAD_TYPE,
+                Mta.HK,
+                Mta.HD,
+                Mta.HF,
                 {% for f in table.pk_fields %}
-                [{{ f.field_name }}],
+                Mta.[{{ f.field_name }}],
                 {% endfor %}
                 {% for f in table.bk_fields %}
-                [{{ f.field_name }}],
+                Mta.[{{ f.field_name }}],
+                {% endfor %}
+                {% for f in table.fk_fields %}
+                Mta.[{{ f.field_name }}],
                 {% endfor %}
                 {% for f in table.di_fields %}
-                [{{ f.field_name }}]
+                Mta.[{{ f.field_name }}]{% if not loop.last %},{% endif %}
                 {% endfor %}
             FROM
             (
                 SELECT
-                    STG.[HK],
-                    CONVERT(CHAR(32), HASHBYTES('MD5',
-                        {% for f in table.pk_fields %}
-                        ISNULL(TRIM(CONVERT(NVARCHAR(255), STG.[{{ f.field_name }}])), N'') + N'{{ hash_dummy }}'
-                        {% if not loop.last %} + {% endif %}
-                        {% endfor %}
-                        {% for f in table.bk_fields %}
-                        + ISNULL(TRIM(CONVERT(NVARCHAR(255), STG.[{{ f.field_name }}])), N'') + N'{{ hash_dummy }}'
-                        {% endfor %}
-                        {% for f in table.di_fields %}
-                        + ISNULL(TRIM(CONVERT(NVARCHAR(255), STG.[{{ f.field_name }}])), N'') + N'{{ hash_dummy }}'
-                        {% endfor %}
-                    ), 2) AS HF,
-                    LAG(CONVERT(CHAR(32), HASHBYTES('MD5',
-                        {% for f in table.pk_fields %}
-                        ISNULL(TRIM(CONVERT(NVARCHAR(255), STG.[{{ f.field_name }}])), N'') + N'{{ hash_dummy }}'
-                        {% if not loop.last %} + {% endif %}
-                        {% endfor %}
-                        {% for f in table.bk_fields %}
-                        + ISNULL(TRIM(CONVERT(NVARCHAR(255), STG.[{{ f.field_name }}])), N'') + N'{{ hash_dummy }}'
-                        {% endfor %}
-                        {% for f in table.di_fields %}
-                        + ISNULL(TRIM(CONVERT(NVARCHAR(255), STG.[{{ f.field_name }}])), N'') + N'{{ hash_dummy }}'
-                        {% endfor %}
-                    ), 2)) OVER (PARTITION BY STG.HK ORDER BY STG.INSERT_TIME) AS LAG_HF,
-                    LEAD(1) OVER (PARTITION BY STG.HK ORDER BY STG.INSERT_TIME) AS LEAD,
+                    LAG(MtaInner.HF) OVER (PARTITION BY MtaInner.HK ORDER BY MtaInner.LOAD_DTS, MtaInner.RNK, MtaInner.SEQUENCE_NO) AS LAG_HF,
+                    LEAD(MtaInner.HF) OVER (PARTITION BY MtaInner.HK ORDER BY MtaInner.LOAD_DTS, MtaInner.RNK, MtaInner.SEQUENCE_NO) AS LEAD_HF,
+                    MtaInner.LOAD_DTS,
+                    MtaInner.SEQUENCE_NO,
+                    MtaInner.CDC_OPERATION_CODE,
+                    MtaInner.REC_SRC,
+                    MtaInner.REC_PATH,
+                    MtaInner.TRANSFER_DTS,
+                    MtaInner.LOAD_TYPE,
+                    MtaInner.HK,
+                    MtaInner.HD,
+                    MtaInner.HF,
                     {% for f in table.pk_fields %}
-                    STG.[{{ f.field_name }}],
+                    MtaInner.[{{ f.field_name }}],
                     {% endfor %}
                     {% for f in table.bk_fields %}
-                    STG.[{{ f.field_name }}],
+                    MtaInner.[{{ f.field_name }}],
+                    {% endfor %}
+                    {% for f in table.fk_fields %}
+                    MtaInner.[{{ f.field_name }}],
                     {% endfor %}
                     {% for f in table.di_fields %}
-                    STG.[{{ f.field_name }}]{% if not loop.last %},{% endif %}
+                    MtaInner.[{{ f.field_name }}],
                     {% endfor %}
-                FROM [{{ table.schema_name }}].[{{ table.object_name }}_STG] STG
-            ) CDC
-            WHERE CDC.CDC_OPERATION_CODE IN ('I', 'U', 'D')
+                    MtaInner.SOURCE_ENTITY,
+                    MtaInner.RNK
+                FROM
+                (
+                    SELECT
+                        COALESCE([LOAD_DTS], GETDATE()) AS LOAD_DTS,
+                        0 AS SEQUENCE_NO,
+                        '' AS CDC_OPERATION_CODE,
+                        [REC_SRC],
+                        '' AS REC_PATH,
+                        NULL AS TRANSFER_DTS,
+                        'FULL' AS LOAD_TYPE,
+                        [HK],
+                        [HF] AS HD,
+                        [HF],
+                        {% for f in table.pk_fields %}
+                        [{{ f.field_name }}],
+                        {% endfor %}
+                        {% for f in table.bk_fields %}
+                        [{{ f.field_name }}],
+                        {% endfor %}
+                        {% for f in table.fk_fields %}
+                        [{{ f.field_name }}],
+                        {% endfor %}
+                        {% for f in table.di_fields %}
+                        [{{ f.field_name }}],
+                        {% endfor %}
+                        'HDA' AS SOURCE_ENTITY,
+                        1 AS RNK
+                    FROM [{{ table.schema_name }}].[V_{{ table.object_name }}_LOG_CURRENT]
+                    UNION ALL
+                    SELECT
+                        COALESCE([LOAD_DTS], GETDATE()) AS LOAD_DTS,
+                        1 AS SEQUENCE_NO,
+                        '' AS CDC_OPERATION_CODE,
+                        [REC_SRC],
+                        '{{ table.schema_name }}.{{ table.object_name }}' AS REC_PATH,
+                        GETDATE() AS TRANSFER_DTS,
+                        'FULL' AS LOAD_TYPE,
+                        [HK],
+                        [HF] AS HD,
+                        [HF],
+                        {% for f in table.pk_fields %}
+                        [{{ f.field_name }}],
+                        {% endfor %}
+                        {% for f in table.bk_fields %}
+                        [{{ f.field_name }}],
+                        {% endfor %}
+                        {% for f in table.fk_fields %}
+                        [{{ f.field_name }}],
+                        {% endfor %}
+                        {% for f in table.di_fields %}
+                        [{{ f.field_name }}],
+                        {% endfor %}
+                        'CDC' AS SOURCE_ENTITY,
+                        2 AS RNK
+                    FROM [{{ table.schema_name }}].[V_{{ table.object_name }}_MTA]
+                ) MtaInner
+            ) Mta
+            CROSS JOIN
+            (
+                SELECT
+                    MAX(LOAD_DTS) AS MAX_LOAD_DTS,
+                    MAX(LOAD_TYPE) AS LOAD_TYPE
+                FROM [{{ table.schema_name }}].[V_{{ table.object_name }}_MTA]
+            ) AS MAX_LTS
+            WHERE CASE
+                WHEN Mta.LEAD_HF IS NULL
+                    AND Mta.SOURCE_ENTITY = 'HDA'
+                    AND MAX_LTS.LOAD_TYPE = 'FULL' THEN 'D'
+                WHEN Mta.LAG_HF IS NULL
+                    AND Mta.SOURCE_ENTITY = 'CDC' THEN 'I'
+                WHEN Mta.LAG_HF <> Mta.HF
+                    AND Mta.LAG_HF IS NOT NULL
+                    AND Mta.SOURCE_ENTITY = 'CDC' THEN 'U'
+                ELSE ''
+            END <> ''
 
         COMMIT TRAN
 

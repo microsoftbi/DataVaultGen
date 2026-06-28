@@ -7,17 +7,18 @@ from sqlalchemy.orm import Session
 class PSAGenerator:
     """PSA Type 2 全套代码生成器"""
 
-    def __init__(self, session: Session, psa_db_name: str, hash_dummy: str = "@IAMHUSKIES@"):
+    def __init__(self, session: Session, psa_db_name: str, hash_dummy: str = "@IAMHUSKIES@", oltp_db_name: str = None):
         self.session = session
         self.psa_db_name = psa_db_name
         self.hash_dummy = hash_dummy
+        self.oltp_db_name = oltp_db_name
         self.template = TemplateEngine()
 
     def _load_tables(self) -> list[dict]:
         """从 META 加载所有需要生成的表元数据"""
         rows = (
             self.session.query(Attribute)
-            .filter(Attribute.is_pk.is_(True) | Attribute.is_bk.is_(True) | Attribute.is_di.is_(True))
+            .filter(Attribute.is_pk.is_(True) | Attribute.is_bk.is_(True) | Attribute.is_di.is_(True) | Attribute.is_fk.is_(True))
             .all()
         )
 
@@ -31,6 +32,7 @@ class PSAGenerator:
                     "record_source": "dbo",
                     "pk_fields": [],
                     "bk_fields": [],
+                    "fk_fields": [],
                     "di_fields": [],
                 }
             field = {
@@ -41,6 +43,8 @@ class PSAGenerator:
                 table_map[key]["pk_fields"].append(field)
             elif row.is_bk:
                 table_map[key]["bk_fields"].append(field)
+            elif row.is_fk:
+                table_map[key]["fk_fields"].append(field)
             elif row.is_di:
                 table_map[key]["di_fields"].append(field)
 
@@ -99,6 +103,7 @@ class PSAGenerator:
             "psa_db_name": self.psa_db_name,
             "tables": tables,
             "hash_dummy": self.hash_dummy,
+            "oltp_db_name": self.oltp_db_name or self.psa_db_name,
         })
 
     def generate_usp_cdc(self) -> str:

@@ -10,7 +10,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 from app.config import settings
-from app.api import connections, meta_import, objects, generator, deploy, dv_config, db_roles
+from app.api import connections, meta_import, objects, generator, deploy, dv_config, db_roles, data_preview
 from app.models.meta import ConnectionConfig, Configuration, init_meta_db
 from app.database import get_meta_engine, get_meta_session, build_engine, register_engine
 
@@ -99,6 +99,7 @@ app.include_router(generator.router)
 app.include_router(deploy.router)
 app.include_router(dv_config.router)
 app.include_router(db_roles.router)
+app.include_router(data_preview.router)
 
 
 @app.get("/api/intro")

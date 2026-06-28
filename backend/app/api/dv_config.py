@@ -18,7 +18,7 @@ def auto_configure_dv(data: AutoConfigureRequest):
     根据字段标记自动创建 HUB/SAT/LINK 并完成字段映射。
     - BK 字段 → HUB_{table_name}
     - DI 字段 → SAT_{table_name}
-    - FK 字段 → LINK_{table_name}
+    - FK/PK 字段 → LINK_{table_name}
     """
     session = get_meta_session()
     results = {}
@@ -31,7 +31,7 @@ def auto_configure_dv(data: AutoConfigureRequest):
 
     bk_fields = [a for a in attrs if a.is_bk]
     di_fields = [a for a in attrs if a.is_di]
-    fk_fields = [a for a in attrs if a.is_fk]
+    fk_fields = [a for a in attrs if a.is_fk or a.is_pk]
 
     # ── HUB ──────────────────────────────────────────────
     if bk_fields:
@@ -54,6 +54,9 @@ def auto_configure_dv(data: AutoConfigureRequest):
             session.add(existing_sat)
             session.flush()
         for a in di_fields:
+            a.dv_sat_id = existing_sat.id
+        # SAT 的 PK（关联 HUB 的 BK 字段）也绑定到 SAT
+        for a in bk_fields:
             a.dv_sat_id = existing_sat.id
         results["sat"] = {"table_name": sat_name, "id": existing_sat.id, "fields": [a.column_name for a in di_fields]}
 

@@ -2,6 +2,9 @@ USE [{{ core_db_name }}]
 GO
 
 {% for hub in dv_hubs %}
+IF EXISTS (SELECT * FROM sys.tables WHERE name = '{{ hub.table_name }}' AND schema_id = SCHEMA_ID('dbo'))
+    DROP TABLE [dbo].[{{ hub.table_name }}]
+GO
 CREATE TABLE [dbo].[{{ hub.table_name }}](
     [LOAD_DTS] DATETIMEOFFSET(7) NOT NULL DEFAULT SYSDATETIMEOFFSET(),
     [CDC_OPERATION_CODE] CHAR(1) NOT NULL DEFAULT 'I',

@@ -8,111 +8,62 @@ GO
 CREATE PROCEDURE [{{ table.schema_name }}].[USP_{{ table.object_name }}_LOG]
 AS
 BEGIN
-    DECLARE @VALIDFROM AS DATETIME
-    DECLARE @VALIDTO AS DATETIME
-    DECLARE @DEFAULTVALIDTO AS DATETIME
     DECLARE @LOGSOURCE AS NVARCHAR(100)
-
-    SET @VALIDFROM = GETDATE()
-    SET @VALIDTO = GETDATE()
-    SET @DEFAULTVALIDTO = '2199-12-31'
     SET @LOGSOURCE = N'{{ psa_db_name }}.{{ table.schema_name }}.USP_{{ table.object_name }}_LOG'
 
     EXEC META.dbo.USP_WRITELOG N'Start to load {{ table.object_name }}_LOG', @LOGSOURCE, N'N'
 
     BEGIN TRY
         BEGIN TRAN
-            -- MERGE: 将 CDC 数据合并到 LOG 表
             INSERT INTO [{{ table.schema_name }}].[{{ table.object_name }}_LOG]
             (
-                {% for f in table.pk_fields %}
-                [{{ f.field_name }}],
-                {% endfor %}
-                {% for f in table.bk_fields %}
-                [{{ f.field_name }}],
-                {% endfor %}
-                {% for f in table.di_fields %}
-                [{{ f.field_name }}],
-                {% endfor %}
-                [HK],
-                [HF],
                 [LOAD_DTS],
+                [SEQUENCE_NO],
+                [CDC_OPERATION_CODE],
                 [REC_SRC],
                 [REC_PATH],
                 [TRANSFER_DTS],
-                [VALID_FROM],
-                [VALID_TO],
-                [IS_CURRENT],
-                [INSERT_TIME],
-                [CDC_OPERATION_CODE]
+                [LOAD_TYPE],
+                [HK],
+                [HD],
+                [HF],
+                {% for f in table.pk_fields %}
+                [{{ f.field_name }}],
+                {% endfor %}
+                {% for f in table.bk_fields %}
+                [{{ f.field_name }}],
+                {% endfor %}
+                {% for f in table.fk_fields %}
+                [{{ f.field_name }}],
+                {% endfor %}
+                {% for f in table.di_fields %}
+                [{{ f.field_name }}]{% if not loop.last %},{% endif %}
+                {% endfor %}
             )
             SELECT
+                SOURCE.[LOAD_DTS],
+                SOURCE.[SEQUENCE_NO],
+                SOURCE.[CDC_OPERATION_CODE],
+                SOURCE.[REC_SRC],
+                SOURCE.[REC_PATH],
+                SOURCE.[TRANSFER_DTS],
+                SOURCE.[LOAD_TYPE],
+                SOURCE.[HK],
+                SOURCE.[HD],
+                SOURCE.[HF],
                 {% for f in table.pk_fields %}
                 SOURCE.[{{ f.field_name }}],
                 {% endfor %}
                 {% for f in table.bk_fields %}
                 SOURCE.[{{ f.field_name }}],
                 {% endfor %}
-                {% for f in table.di_fields %}
+                {% for f in table.fk_fields %}
                 SOURCE.[{{ f.field_name }}],
                 {% endfor %}
-                SOURCE.[HK],
-                SOURCE.[HF],
-                SOURCE.[LOAD_DTS],
-                SOURCE.[REC_SRC],
-                SOURCE.[REC_PATH],
-                SOURCE.[TRANSFER_DTS],
-                SOURCE.[VALID_FROM],
-                SOURCE.[VALID_TO],
-                SOURCE.[IS_CURRENT],
-                SOURCE.[INSERT_TIME],
-                SOURCE.[CDC_OPERATION_CODE]
-            FROM
-            (
-                MERGE [{{ table.schema_name }}].[{{ table.object_name }}_LOG] AS TARGET
-                USING [{{ table.schema_name }}].[{{ table.object_name }}_CDC] AS SOURCE
-                    ON {% for f in table.pk_fields %}
-                    TARGET.[{{ f.field_name }}] = SOURCE.[{{ f.field_name }}]
-                    {% if not loop.last %}AND {% endif %}
-                    {% endfor %}
-                    AND TARGET.[IS_CURRENT] = 1
-
-                -- 数据更新：关闭旧版本
-                WHEN MATCHED AND SOURCE.[CDC_OPERATION_CODE] = 'U'
-                    AND SOURCE.[HF] <> TARGET.[HF] THEN
-                    UPDATE SET
-                        TARGET.[VALID_TO] = @VALIDTO,
-                        TARGET.[IS_CURRENT] = 0
-
-                -- 数据删除：标记删除
-                WHEN MATCHED AND SOURCE.[CDC_OPERATION_CODE] = 'D' THEN
-                    UPDATE SET
-                        TARGET.[VALID_TO] = @VALIDTO,
-                        TARGET.[IS_CURRENT] = 0
-
-                OUTPUT $action AS MERGE_ACTION,
-                    {% for f in table.pk_fields %}
-                    SOURCE.[{{ f.field_name }}],
-                    {% endfor %}
-                    {% for f in table.bk_fields %}
-                    SOURCE.[{{ f.field_name }}],
-                    {% endfor %}
-                    {% for f in table.di_fields %}
-                    SOURCE.[{{ f.field_name }}],
-                    {% endfor %}
-                    SOURCE.[HK],
-                    SOURCE.[HF],
-                    SOURCE.[LOAD_DTS],
-                    SOURCE.[REC_SRC],
-                    SOURCE.[REC_PATH],
-                    SOURCE.[TRANSFER_DTS],
-                    @VALIDFROM AS [VALID_FROM],
-                    @DEFAULTVALIDTO AS [VALID_TO],
-                    1 AS [IS_CURRENT],
-                    SOURCE.[INSERT_TIME],
-                    SOURCE.[CDC_OPERATION_CODE]
-            ) AS MERGE_OUTPUT
-            WHERE MERGE_OUTPUT.MERGE_ACTION = 'UPDATE'
+                {% for f in table.di_fields %}
+                SOURCE.[{{ f.field_name }}]{% if not loop.last %},{% endif %}
+                {% endfor %}
+            FROM [{{ table.schema_name }}].[{{ table.object_name }}_CDC] SOURCE
 
         COMMIT TRAN
 

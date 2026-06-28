@@ -51,6 +51,10 @@
             <el-icon><Promotion /></el-icon>
             <template #title>{{ $t('menu.deploy') }}</template>
           </el-menu-item>
+          <el-menu-item index="/data-preview">
+            <el-icon><Search /></el-icon>
+            <template #title>{{ $t('menu.dataPreview') }}</template>
+          </el-menu-item>
           <el-menu-item index="/logs">
             <el-icon><Document /></el-icon>
             <template #title>{{ $t('menu.logs') }}</template>
@@ -110,7 +114,7 @@ import zhCn from 'element-plus/es/locale/lang/zh-cn'
 import en from 'element-plus/es/locale/lang/en'
 import {
   Monitor, Connection, Upload, Setting,
-  MagicStick, Promotion, Document,
+  MagicStick, Promotion, Document, Search,
   Expand, Fold, Coin, InfoFilled,
   Sunny, Moon,
 } from '@element-plus/icons-vue'

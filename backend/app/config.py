@@ -1,4 +1,5 @@
 """DWH-Generator 后端配置"""
+from pathlib import Path
 from pydantic_settings import BaseSettings
 
 
@@ -11,7 +12,8 @@ class Settings(BaseSettings):
     secret_key: str = "dwh-generator-secret-key-change-in-production"
 
     # META 库（SQLite，本地文件，自动创建）
-    meta_db_path: str = "./meta.db"
+    # 路径相对于 config.py 所在目录 (backend/app/)，定位到 backend/data/
+    meta_db_path: str = str(Path(__file__).resolve().parent.parent / "data" / "meta.db")
 
     # CORS 允许的前端地址
     cors_origins: list[str] = ["http://localhost:5173", "http://localhost:3000"]

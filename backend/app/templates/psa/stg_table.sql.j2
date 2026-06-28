@@ -18,6 +18,9 @@ CREATE TABLE [{{ table.schema_name }}].[{{ table.object_name }}_STG](
     {% for f in table.bk_fields %}
     [{{ f.field_name }}] {{ f.field_type }} NULL,
     {% endfor %}
+    {% for f in table.fk_fields %}
+    [{{ f.field_name }}] {{ f.field_type }} NULL,
+    {% endfor %}
     {% for f in table.di_fields %}
     [{{ f.field_name }}] {{ f.field_type }} NULL{% if not loop.last %},{% endif %}
     {% endfor %}

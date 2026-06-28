@@ -1,0 +1,132 @@
+/* ── Claude Code 风格暗色主题 ──────────────────────────────────
+ * 覆盖 Element Plus 暗色 CSS 变量
+ */
+
+html.dark {
+  /* ── 主色：琥珀色 ── */
+  --el-color-primary: #e68619;
+  --el-color-primary-light-3: #f0a045;
+  --el-color-primary-light-5: #f5b96a;
+  --el-color-primary-light-7: #f9d093;
+  --el-color-primary-light-8: #fbe0b5;
+  --el-color-primary-light-9: #fdefd8;
+  --el-color-primary-dark-2: #c46e12;
+
+  /* ── 语义色 ── */
+  --el-color-success: #3fb950;
+  --el-color-warning: #d29922;
+  --el-color-danger: #f85149;
+  --el-color-error: #f85149;
+  --el-color-info: #888888;
+
+  /* ── 背景色 ── */
+  --el-bg-color: #1a1a1a;
+  --el-bg-color-page: #111111;
+  --el-bg-color-overlay: #222222;
+
+  /* ── 文字色 ── */
+  --el-text-color-primary: #e0e0e0;
+  --el-text-color-regular: #c8c8c8;
+  --el-text-color-secondary: #888888;
+  --el-text-color-placeholder: #666666;
+  --el-text-color-disabled: #444444;
+
+  /* ── 边框色 ── */
+  --el-border-color: #2e2e2e;
+  --el-border-color-light: #333333;
+  --el-border-color-lighter: #383838;
+  --el-border-color-extra-light: #3a3a3a;
+
+  /* ── 填充色 ── */
+  --el-fill-color: #252525;
+  --el-fill-color-light: #2a2a2a;
+  --el-fill-color-lighter: #303030;
+  --el-fill-color-blank: #1a1a1a;
+  --el-fill-color-dark: #1e1e1e;
+
+  /* ── 遮罩 / 阴影 ── */
+  --el-mask-color: rgba(0, 0, 0, 0.6);
+  --el-box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  --el-box-shadow-light: 0 1px 4px rgba(0, 0, 0, 0.3);
+  --el-box-shadow-lighter: 0 1px 2px rgba(0, 0, 0, 0.2);
+  --el-box-shadow-dark: 0 4px 16px rgba(0, 0, 0, 0.6);
+
+  /* ── 悬停/激活 ── */
+  --el-color-primary-light-hover: rgba(230, 134, 25, 0.12);
+
+  /* ── 菜单 ── */
+  --el-menu-bg-color: #1a1a1a;
+  --el-menu-hover-bg-color: #252525;
+  --el-menu-active-color: #e68619;
+  --el-menu-text-color: #c8c8c8;
+  --el-menu-hover-text-color: #e0e0e0;
+
+  /* ── 输入框 ── */
+  --el-input-bg-color: #222222;
+  --el-input-border-color: #333333;
+  --el-input-hover-border-color: #e68619;
+  --el-input-focus-border-color: #e68619;
+  --el-input-placeholder-color: #666666;
+
+  /* ── 表格 ── */
+  --el-table-bg-color: #1a1a1a;
+  --el-table-tr-bg-color: #1a1a1a;
+  --el-table-header-bg-color: #222222;
+  --el-table-row-hover-bg-color: #252525;
+  --el-table-border-color: #2e2e2e;
+  --el-table-text-color: #e0e0e0;
+  --el-table-header-text-color: #c8c8c8;
+
+  /* ── 标签页 ── */
+  --el-tabs-header-bg-color: #1a1a1a;
+  --el-tab-pane-bg-color: #1a1a1a;
+
+  /* ── 弹窗 ── */
+  --el-dialog-bg-color: #222222;
+  --el-dialog-header-bg-color: #222222;
+  --el-dialog-footer-bg-color: #222222;
+
+  /* ── 卡片 ── */
+  --el-card-bg-color: #1a1a1a;
+  --el-card-header-bg-color: #1a1a1a;
+
+  /* ── 标签 ── */
+  --el-tag-bg-color: #252525;
+  --el-tag-border-color: #333333;
+  --el-tag-hover-color: #e68619;
+
+  /* ── 弹出框 / 下拉 ── */
+  --el-popper-bg-color: #222222;
+  --el-popper-border-color: #333333;
+  --el-select-dropdown-bg-color: #222222;
+  --el-select-dropdown-border-color: #333333;
+
+  /* ── 分割线 ── */
+  --el-divider-border-color: #2e2e2e;
+
+  /* ── 步骤条 ── */
+  --el-step-header-font-color: #888888;
+  --el-step-main-font-color: #c8c8c8;
+
+  /* ── 空状态 ── */
+  --el-empty-fill-color-0: #252525;
+  --el-empty-fill-color-1: #2a2a2a;
+  --el-empty-fill-color-2: #303030;
+  --el-empty-fill-color-3: #252525;
+  --el-empty-fill-color-4: #2a2a2a;
+  --el-empty-fill-color-5: #303030;
+  --el-empty-fill-color-6: #252525;
+  --el-empty-fill-color-7: #2a2a2a;
+  --el-empty-fill-color-8: #303030;
+  --el-empty-fill-color-9: #252525;
+
+  /* ── 折叠面板 ── */
+  --el-collapse-header-bg-color: #1a1a1a;
+  --el-collapse-content-bg-color: #1a1a1a;
+  --el-collapse-border-color: #2e2e2e;
+
+  /* ── 描述列表 ── */
+  --el-descriptions-item-bg-color: #222222;
+  --el-descriptions-table-border-color: #2e2e2e;
+  --el-descriptions-item-label-color: #888888;
+}

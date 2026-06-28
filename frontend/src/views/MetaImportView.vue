@@ -13,10 +13,11 @@
       <el-step :title="$t('metaImport.step5Title')" :description="$t('metaImport.step5Desc')" />
     </el-steps>
 
-    <!-- ==================== Step 0: 选择源连接 ==================== -->
+    <!-- ==================== Step 0: 选择OLTP数据源连接 ==================== -->
     <el-card v-show="activeStep === 0" shadow="never" class="step-card">
       <template #header><span class="step-title">{{ $t('metaImport.step1TitleLong') }}</span></template>
-      <div v-if="!connectionsLoading && sourceConnections.length === 0" class="empty-hint">
+      <div v-if="loading" v-loading="loading" element-loading-text=" " style="height: 60px" />
+      <div v-else-if="connections.length === 0" class="empty-hint">
         <el-empty :description="$t('metaImport.emptyConn')">
           <p>{{ $t('metaImport.emptyHint') }}</p>
           <el-button type="primary" @click="goToConnections">{{ $t('metaImport.goToConnections') }}</el-button>
@@ -25,10 +26,10 @@
       <div v-else>
         <el-form label-width="120px">
           <el-form-item :label="$t('metaImport.oltpLabel')">
-            <el-select v-model="selectedConnId" :placeholder="$t('metaImport.selectOltp')" style="width: 360px" :loading="connectionsLoading" @change="onConnChange">
-              <el-option v-for="c in sourceConnections" :key="c.id" :label="c.name" :value="c.id">
+            <el-select v-model="selectedConnId" :placeholder="$t('metaImport.selectOltp')" style="width: 420px" @change="resetTables">
+              <el-option v-for="c in connections" :key="c.id" :label="c.name" :value="c.id">
                 <span>{{ c.name }}</span>
-                <span class="conn-detail">({{ c.host }} / {{ c.database_name || '?' }})</span>
+                <span class="conn-detail">({{ c.host }} / {{ connectionDbName(c.id) }})</span>
               </el-option>
             </el-select>
           </el-form-item>
@@ -168,10 +169,10 @@ function isBkRecommended(name: string) { return BK_PATTERNS.some(p => p.test(nam
 
 // ── 状态 ──────────────────────────────────────────────────────────
 const activeStep = ref(0)
-const connectionsLoading = ref(false)
+const loading = ref(true)
 const connections = ref<Connection[]>([])
 const selectedConnId = ref<number | null>(null)
-const sourceConnections = computed(() => connections.value)
+const oltpDbName = ref('')  // OLTP 角色绑定的数据库名（查询时传入）
 
 const tablesLoading = ref(false)
 const tables = ref<SourceTable[]>([])
@@ -214,20 +215,40 @@ const confirmSummary = computed(() =>
 )
 
 // ── 生命周期 ──────────────────────────────────────────────────────
-onMounted(() => fetchConnections())
+onMounted(() => init())
 function goToConnections() { router.push('/connections') }
 
-// ── 连接 ──────────────────────────────────────────────────────────
-async function fetchConnections() {
-  connectionsLoading.value = true
+// ── 连接 + OLTP 绑定 ──────────────────────────────────────────────
+async function init() {
+  loading.value = true
   try {
-    const res = await api.listConnections()
-    connections.value = res.data
-  } catch (e: any) { ElMessage.error(e?.response?.data?.message || e?.message || t('metaImport.fetchConnFailed')) }
-  finally { connectionsLoading.value = false }
+    // 并行获取连接列表 + OLTP 角色绑定
+    const [connRes, oltpRes] = await Promise.allSettled([
+      api.listConnections(),
+      api.getOltpSource(),
+    ])
+    if (connRes.status === 'fulfilled') {
+      connections.value = connRes.value.data
+    }
+    if (oltpRes.status === 'fulfilled') {
+      const data = oltpRes.value.data as any
+      if (data.success) {
+        oltpDbName.value = data.database_name
+      }
+    }
+  } catch (e: any) {
+    ElMessage.error(e?.message || t('metaImport.fetchConnFailed'))
+  } finally { loading.value = false }
 }
 
-function onConnChange() {
+function connectionDbName(connId: number) {
+  // 如果该连接是 OLTP 角色绑定的，显示角色绑定的数据库名，否则显示连接的数据库名
+  // 通过 oltpDbName 来判断，但并不是最准确的...
+  // 直接用后端 oltp-source 端口的 conn_id 来判断
+  return oltpDbName.value || connections.value.find(c => c.id === connId)?.database_name || '?'
+}
+
+function resetTables() {
   selectedTables.value = []
   tables.value = []
   tableConfigs.value = []
@@ -239,11 +260,12 @@ async function loadTables() {
   if (!selectedConnId.value) return
   tablesLoading.value = true
   activeStep.value = 1
+  resetTables()
   try {
-    const res = await api.listSourceTables(selectedConnId.value)
+    const res = await api.listSourceTables(selectedConnId.value, oltpDbName.value || undefined)
     if (res.data.success) tables.value = res.data.tables
     else { ElMessage.warning((res.data as any).message || t('metaImport.fetchTablesFailed')); tables.value = [] }
-  } catch (e: any) { ElMessage.error(e?.response?.data?.message || e?.message || t('metaImport.fetchTablesFailed')); tables.value = [] }
+  } catch (e: any) { ElMessage.error(e?.response?.data?.detail || e?.response?.data?.message || e?.message || t('metaImport.fetchTablesFailed')); tables.value = [] }
   finally { tablesLoading.value = false }
 }
 
@@ -255,12 +277,13 @@ async function loadAllColumns() {
   loadingColumns.value = true
   const configs: TableConfig[] = []
   const keyMap: Record<string, string[]> = {}
+  const dbName = oltpDbName.value || undefined
 
   for (const tbl of selectedTables.value) {
     const key = `${tbl.table_schema}.${tbl.table_name}`
     try {
       // 读取源表列
-      const srcRes = await api.listSourceColumns(selectedConnId.value, tbl.table_schema, tbl.table_name)
+      const srcRes = await api.listSourceColumns(selectedConnId.value, tbl.table_schema, tbl.table_name, dbName)
       const srcCols = (srcRes.data as any).columns || []
 
       // 读取 META 中已有的列
@@ -279,7 +302,8 @@ async function loadAllColumns() {
 
       configs.push({ key, tableName: tbl.table_name, tableSchema: tbl.table_schema, transferData, totalCount: srcCols.length })
     } catch (e: any) {
-      ElMessage.error(t('metaImport.fetchColumnsFailed', { table: tbl.table_name }))
+      const errMsg = e?.response?.data?.detail || e?.response?.data?.message || e?.message || ''
+      ElMessage.error(t('metaImport.fetchColumnsFailed', { table: tbl.table_name }) + (errMsg ? `: ${errMsg}` : ''))
     }
   }
 
@@ -295,7 +319,7 @@ async function handleTransfer(cfg: TableConfig, direction: string, keys: string[
   if (direction === 'right') {
     // 左→右：导入到 META
     try {
-      await api.importMeta(selectedConnId.value!, cfg.tableSchema, cfg.tableName, undefined, keys)
+      await api.importMeta(selectedConnId.value!, cfg.tableSchema, cfg.tableName, undefined, keys, oltpDbName.value || undefined)
       ElMessage.success(t('metaImport.transferImported', { table: cfg.tableName, n: keys.length }))
     } catch (e: any) {
       ElMessage.error(t('metaImport.importColumnsFailed', { msg: e?.response?.data?.detail || e?.message }))
@@ -333,7 +357,7 @@ async function handleBatchImport() {
   for (const cfg of tableConfigs.value) {
     const cols = (selectedKeysMap.value[cfg.key] || []).filter(k => !isTechnical(k))
     try {
-      const res = await api.importMeta(selectedConnId.value!, cfg.tableSchema, cfg.tableName, undefined, cols)
+      const res = await api.importMeta(selectedConnId.value!, cfg.tableSchema, cfg.tableName, undefined, cols, oltpDbName.value || undefined)
       const data = res.data as any
       importResults.value.push({
         table: cfg.tableName,

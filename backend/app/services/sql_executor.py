@@ -1,6 +1,7 @@
 """SQL 批处理执行器 — 按 GO 分割 + 事务执行"""
 import re
 from sqlalchemy import text
+from sqlalchemy.engine import Engine
 from app.database import get_engine
 
 
@@ -10,14 +11,21 @@ def split_by_go(sql: str) -> list[str]:
     return [s.strip() for s in statements if s.strip()]
 
 
-def execute_batch(conn_id: int, sql: str) -> dict:
+def execute_batch(conn_id: int, sql: str, engine: Engine = None) -> dict:
     """
     在指定数据库连接上执行批处理 SQL
+
+    Args:
+        conn_id: 连接 ID（当 engine 为 None 时用于查找缓存的引擎）
+        sql: 要执行的 SQL
+        engine: 可选，直接传入已构建的引擎（绕过缓存）
 
     Returns:
         {"success": bool, "message": str, "executed_count": int, "error_at": int}
     """
-    engine = get_engine(conn_id)
+    if engine is None:
+        engine = get_engine(conn_id)
+
     if not engine:
         return {"success": False, "message": f"Connection {conn_id} not found", "executed_count": 0, "error_at": -1}
 

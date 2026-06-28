@@ -8,24 +8,39 @@ GO
 CREATE VIEW [{{ table.schema_name }}].[V_{{ table.object_name }}_LOG_CURRENT]
 AS
 SELECT
+    LogTable.[LOAD_DTS],
+    LogTable.[SEQUENCE_NO],
+    LogTable.[CDC_OPERATION_CODE],
+    LogTable.[REC_SRC],
+    LogTable.[REC_PATH],
+    LogTable.[TRANSFER_DTS],
+    LogTable.[LOAD_TYPE],
+    LogTable.[HK],
+    LogTable.[HD],
+    LogTable.[HF],
     {% for f in table.pk_fields %}
-    LOG.[{{ f.field_name }}],
+    LogTable.[{{ f.field_name }}],
     {% endfor %}
     {% for f in table.bk_fields %}
-    LOG.[{{ f.field_name }}],
+    LogTable.[{{ f.field_name }}],
+    {% endfor %}
+    {% for f in table.fk_fields %}
+    LogTable.[{{ f.field_name }}],
     {% endfor %}
     {% for f in table.di_fields %}
-    LOG.[{{ f.field_name }}],
+    LogTable.[{{ f.field_name }}]{% if not loop.last %},{% endif %}
     {% endfor %}
-    LOG.[HK],
-    LOG.[HF],
-    LOG.[LOAD_DTS],
-    LOG.[VALID_FROM],
-    LOG.[VALID_TO],
-    LOG.[IS_CURRENT],
-    LOG.[CDC_OPERATION_CODE]
-FROM [{{ table.schema_name }}].[{{ table.object_name }}_LOG] LOG
-WHERE LOG.[IS_CURRENT] = 1
+FROM [{{ table.schema_name }}].[{{ table.object_name }}_LOG] LogTable
+INNER JOIN
+(
+    SELECT HK,
+        MAX(LOAD_DTS) AS MAX_LOAD_DTS
+    FROM [{{ table.schema_name }}].[{{ table.object_name }}_LOG] WITH (NOLOCK)
+    GROUP BY HK
+) HDA_MAX
+    ON LogTable.HK = HDA_MAX.HK
+    AND LogTable.LOAD_DTS = HDA_MAX.MAX_LOAD_DTS
+WHERE LogTable.CDC_OPERATION_CODE != 'D'
 GO
 
 {% endfor %}

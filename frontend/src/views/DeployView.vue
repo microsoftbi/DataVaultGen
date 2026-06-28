@@ -20,7 +20,7 @@
           <el-option
             v-for="c in targetConnections"
             :key="c.id"
-            :label="`${c.name} (${c.db_type}@${c.host}:${c.port}/${c.database_name})`"
+            :label="`${c.name} (${c.host}:${c.port})`"
             :value="c.id"
           />
         </el-select>
@@ -28,10 +28,10 @@
         <el-button
           type="default"
           :disabled="!selectedConnId"
-          :loading="statusLoading"
-          @click="fetchStatus"
+          :loading="testingConn"
+          @click="handleTestConnection"
         >
-          {{ $t('deploy.checkStatus') }}
+          {{ $t('connection.testConn') }}
         </el-button>
       </div>
 
@@ -66,76 +66,7 @@
         </el-table>
       </div>
 
-      <!-- 状态展示 -->
-      <template v-if="deployStatus">
-        <el-divider />
-
-        <div class="status-cards">
-          <el-card shadow="hover" class="status-card card-tables">
-            <div class="status-card-inner">
-              <span class="status-card-value">{{ deployStatus.tables.length }}</span>
-              <span class="status-card-label">{{ $t('deploy.tablesLabel') }}</span>
-              <el-button v-if="deployStatus.tables.length" text type="primary" size="small" @click="showTableList = !showTableList">
-                {{ showTableList ? $t('deploy.collapse') : $t('deploy.viewList') }}
-              </el-button>
-            </div>
-          </el-card>
-          <el-card shadow="hover" class="status-card card-views">
-            <div class="status-card-inner">
-              <span class="status-card-value">{{ deployStatus.views.length }}</span>
-              <span class="status-card-label">{{ $t('deploy.viewsLabel') }}</span>
-              <el-button v-if="deployStatus.views.length" text type="primary" size="small" @click="showViewList = !showViewList">
-                {{ showViewList ? $t('deploy.collapse') : $t('deploy.viewList') }}
-              </el-button>
-            </div>
-          </el-card>
-          <el-card shadow="hover" class="status-card card-procs">
-            <div class="status-card-inner">
-              <span class="status-card-value">{{ deployStatus.procedures.length }}</span>
-              <span class="status-card-label">{{ $t('deploy.proceduresLabel') }}</span>
-              <el-button v-if="deployStatus.procedures.length" text type="primary" size="small" @click="showProcList = !showProcList">
-                {{ showProcList ? $t('deploy.collapse') : $t('deploy.viewList') }}
-              </el-button>
-            </div>
-          </el-card>
-        </div>
-
-        <el-collapse v-model="activeCollapse" class="status-collapse">
-          <el-collapse-item v-if="showTableList && deployStatus.tables.length" :title="$t('deploy.tablesList')" name="tables">
-            <div class="item-list">
-              <el-tag
-                v-for="t in deployStatus.tables"
-                :key="t"
-                class="item-tag"
-              >{{ t }}</el-tag>
-              <span v-if="!deployStatus.tables.length" class="empty-hint">{{ $t('deploy.empty') }}</span>
-            </div>
-          </el-collapse-item>
-          <el-collapse-item v-if="showViewList && deployStatus.views.length" :title="$t('deploy.viewsList')" name="views">
-            <div class="item-list">
-              <el-tag
-                v-for="v in deployStatus.views"
-                :key="v"
-                class="item-tag"
-                type="success"
-              >{{ v }}</el-tag>
-              <span v-if="!deployStatus.views.length" class="empty-hint">{{ $t('deploy.empty') }}</span>
-            </div>
-          </el-collapse-item>
-          <el-collapse-item v-if="showProcList && deployStatus.procedures.length" :title="$t('deploy.proceduresList')" name="procs">
-            <div class="item-list">
-              <el-tag
-                v-for="p in deployStatus.procedures"
-                :key="p"
-                class="item-tag"
-                type="warning"
-              >{{ p }}</el-tag>
-              <span v-if="!deployStatus.procedures.length" class="empty-hint">{{ $t('deploy.empty') }}</span>
-            </div>
-          </el-collapse-item>
-        </el-collapse>
-      </template>
-    </el-card>
+      </el-card>
 
     <!-- 中部区域：部署操作 -->
     <el-card shadow="never" class="section-card">
@@ -154,7 +85,6 @@
           </div>
           <el-button
             size="large"
-            :disabled="!selectedConnId"
             :loading="deployRuntimeLoading"
             @click="handleDeployRuntime"
           >
@@ -172,7 +102,6 @@
           <el-button
             type="primary"
             size="large"
-            :disabled="!selectedConnId"
             :loading="deployPsaLoading"
             @click="handleDeployPsa"
           >
@@ -188,7 +117,6 @@
           <el-button
             type="success"
             size="large"
-            :disabled="!selectedConnId"
             :loading="deployDvLoading"
             @click="handleDeployDv"
           >
@@ -314,7 +242,7 @@ import { ElMessage } from 'element-plus'
 import { Connection, Document, Upload } from '@element-plus/icons-vue'
 import {
   listConnections,
-  getDeployStatus,
+  testSavedConnection,
   deployPsa,
   deployDv,
   deployRuntime,
@@ -322,7 +250,7 @@ import {
   listLogs,
   getDeployDiff,
 } from '@/api'
-import type { Connection as ConnectionType, DatabaseStatus, LogEntry } from '@/types'
+import type { Connection as ConnectionType, LogEntry } from '@/types'
 
 const { t } = useI18n()
 
@@ -331,9 +259,7 @@ const { t } = useI18n()
 const allConnections = ref<ConnectionType[]>([])
 const selectedConnId = ref<number | null>(null)
 
-const targetConnections = computed(() =>
-  allConnections.value.filter((c) => c.is_target),
-)
+const targetConnections = computed(() => allConnections.value)
 const deployDiff = ref<any[] | null>(null)
 const diffLoading = ref(false)
 const diffSummary = computed(() => {
@@ -357,10 +283,7 @@ async function loadConnections() {
 }
 
 function onConnChange() {
-  deployStatus.value = null
-  showTableList.value = false
-  showViewList.value = false
-  showProcList.value = false
+  deployDiff.value = null
 }
 
 // ── 差异对比 ──
@@ -380,26 +303,25 @@ async function fetchDiff() {
   } finally { diffLoading.value = false }
 }
 
-// ── 状态查看 ──
+// ── 测试连接 ──
 
-const statusLoading = ref(false)
-const deployStatus = ref<DatabaseStatus | null>(null)
-const showTableList = ref(false)
-const showViewList = ref(false)
-const showProcList = ref(false)
-const activeCollapse = ref<string[]>([])
+const testingConn = ref(false)
 
-async function fetchStatus() {
+async function handleTestConnection() {
   if (!selectedConnId.value) return
-  statusLoading.value = true
-  deployStatus.value = null
+  testingConn.value = true
   try {
-    const res = await getDeployStatus(selectedConnId.value)
-    deployStatus.value = res.data
+    const res = await testSavedConnection(selectedConnId.value)
+    const data = res.data as any
+    if (data.success) {
+      ElMessage.success(t('connection.testSuccess'))
+    } else {
+      ElMessage.error(data.message || t('connection.testFailed'))
+    }
   } catch (e: any) {
-    ElMessage.error(e?.response?.data?.message || t('deploy.getStatusFailed'))
+    ElMessage.error(e?.response?.data?.detail || e?.response?.data?.message || t('connection.testFailed'))
   } finally {
-    statusLoading.value = false
+    testingConn.value = false
   }
 }
 
@@ -408,10 +330,9 @@ async function fetchStatus() {
 const deployPsaLoading = ref(false)
 
 async function handleDeployPsa() {
-  if (!selectedConnId.value) return
   deployPsaLoading.value = true
   try {
-    const res = await deployPsa(selectedConnId.value)
+    const res = await deployPsa()
     const result = res.data
     if (result.success) {
       ElMessage.success(t('deploy.deploySuccessMsg', { n: result.executed_count }))
@@ -432,10 +353,9 @@ async function handleDeployPsa() {
 const deployDvLoading = ref(false)
 
 async function handleDeployDv() {
-  if (!selectedConnId.value) return
   deployDvLoading.value = true
   try {
-    const res = await deployDv(selectedConnId.value)
+    const res = await deployDv()
     const result = res.data
     if (result.success) {
       ElMessage.success(t('deploy.deployDvSuccessMsg', { n: result.executed_count }))
@@ -456,10 +376,9 @@ async function handleDeployDv() {
 const deployRuntimeLoading = ref(false)
 
 async function handleDeployRuntime() {
-  if (!selectedConnId.value) return
   deployRuntimeLoading.value = true
   try {
-    const res = await deployRuntime(selectedConnId.value)
+    const res = await deployRuntime()
     const result = res.data
     if (result.success) {
       ElMessage.success(t('deploy.runtimeSuccessMsg', { n: result.executed_count }))

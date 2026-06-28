@@ -63,10 +63,15 @@ class DVGenerator:
         sat_rows = self.session.query(DvSat).all()
         sats = []
         for sat in sat_rows:
-            pk_fields_data = self.session.query(Attribute).filter(
-                Attribute.dv_sat_id == sat.id,
-                Attribute.is_bk == 1,
-            ).all()
+            # SAT 的 PK 字段 = 同源表的 BK 字段（通过 SAT_{table_name} 推导源表名）
+            source_table = sat.table_name
+            pk_fields_data = []
+            if source_table.startswith("SAT_"):
+                source_table = source_table[4:]
+                pk_fields_data = self.session.query(Attribute).filter(
+                    Attribute.table_name == source_table,
+                    Attribute.is_bk == 1,
+                ).all()
             di_fields_data = self.session.query(Attribute).filter(
                 Attribute.dv_sat_id == sat.id,
                 Attribute.is_di == 1,
@@ -113,7 +118,7 @@ class DVGenerator:
         for link in link_rows:
             fields = self.session.query(Attribute).filter(
                 Attribute.dv_link_id == link.id,
-                Attribute.is_fk == 1,
+                (Attribute.is_fk == 1) | (Attribute.is_pk == 1),
             ).all()
             fk_fields = []
             for f in fields:

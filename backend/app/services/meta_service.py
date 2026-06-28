@@ -1,9 +1,38 @@
 """元数据服务 — 从源表读取 INFORMATION_SCHEMA 并写入 META"""
+import base64
+import hashlib
 import re
 from sqlalchemy import text
 from sqlalchemy.orm import Session
-from app.database import get_engine
-from app.models.meta import Attribute, RecordSource, GenList
+from cryptography.fernet import Fernet
+from app.database import get_engine, build_engine
+from app.models.meta import Attribute, RecordSource, GenList, ConnectionConfig
+from app.config import settings
+
+# ── 密码解密 + 临时引擎（用于按角色绑定的数据库名查询） ──────
+_key = base64.urlsafe_b64encode(
+    hashlib.sha256(settings.secret_key.encode()).digest()
+)
+_cipher = Fernet(_key)
+
+
+def _decrypt_password(encrypted: str) -> str:
+    return _cipher.decrypt(encrypted.encode()).decode()
+
+
+def _build_temp_engine(conn_id: int, database_name: str):
+    """根据连接凭据 + 指定数据库名构建临时引擎（不缓存）"""
+    from app.database import get_meta_session as _get_ms
+    s = _get_ms()
+    try:
+        row = s.query(ConnectionConfig).filter(ConnectionConfig.id == conn_id).first()
+        if not row:
+            return None
+        password = _decrypt_password(row.password_encrypted)
+        return build_engine(row.host, row.port, database_name, row.username, password)
+    finally:
+        s.close()
+
 
 # DWH 技术字段列表 — 导入时自动跳过
 TECHNICAL_FIELDS = {
@@ -40,11 +69,16 @@ def _suggest_bk(name: str) -> bool:
     return any(p.match(name) for p in BK_PATTERNS)
 
 
-def get_source_columns(conn_id: int, table_schema: str, table_name: str) -> list[dict]:
+def get_source_columns(conn_id: int, table_schema: str, table_name: str, database_name: str = None) -> list[dict]:
     """从源数据库读取指定表的列信息"""
-    engine = get_engine(conn_id)
-    if not engine:
-        raise ValueError(f"Connection {conn_id} not found")
+    if database_name:
+        engine = _build_temp_engine(conn_id, database_name)
+        if not engine:
+            raise ValueError(f"Connection {conn_id} not found or invalid")
+    else:
+        engine = get_engine(conn_id)
+        if not engine:
+            raise ValueError(f"Connection {conn_id} not found")
 
     sql = text("""
         SELECT
@@ -72,11 +106,16 @@ def get_source_columns(conn_id: int, table_schema: str, table_name: str) -> list
         ]
 
 
-def get_source_tables(conn_id: int) -> list[dict]:
+def get_source_tables(conn_id: int, database_name: str = None) -> list[dict]:
     """获取源库的所有用户表"""
-    engine = get_engine(conn_id)
-    if not engine:
-        raise ValueError(f"Connection {conn_id} not found")
+    if database_name:
+        engine = _build_temp_engine(conn_id, database_name)
+        if not engine:
+            raise ValueError(f"Connection {conn_id} not found or invalid")
+    else:
+        engine = get_engine(conn_id)
+        if not engine:
+            raise ValueError(f"Connection {conn_id} not found")
 
     sql = text("""
         SELECT TABLE_SCHEMA, TABLE_NAME
@@ -97,6 +136,7 @@ def import_table_meta(
     table_name: str,
     record_source: str = None,
     selected_columns: list[str] = None,
+    database_name: str = None,
 ) -> tuple[int, list[str]]:
     """
     将源表列信息导入 META.ATTRIBUTE
@@ -105,7 +145,7 @@ def import_table_meta(
     - 根据字段名智能推荐 BK（ID, *_ID, *_CODE 等）
     - 其余字段默认标记为 DI
     """
-    columns = get_source_columns(conn_id, table_schema, table_name)
+    columns = get_source_columns(conn_id, table_schema, table_name, database_name=database_name)
     imported = 0
     skipped = []
 

@@ -174,7 +174,7 @@ const createDialogTitle = computed(() => {
 
 const hubAttributes = computed(() => attributes.value.filter(a => a.is_bk))
 const satAttributes = computed(() => attributes.value.filter(a => a.is_di))
-const linkAttributes = computed(() => attributes.value.filter(a => a.is_fk))
+const linkAttributes = computed(() => attributes.value.filter(a => a.is_fk || a.is_pk))
 
 async function loadAll() {
   const [h, s, l, a] = await Promise.all([

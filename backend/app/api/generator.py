@@ -1,7 +1,7 @@
 """PSA + DV 代码生成 API"""
 from fastapi import APIRouter
 from app.database import get_meta_session
-from app.models.meta import Configuration
+from app.models.meta import Configuration, DatabaseRole
 from app.services.generator_psa import PSAGenerator
 from app.services.generator_dv import DVGenerator
 
@@ -25,11 +25,18 @@ def _get_config(session) -> tuple[str, str, str]:
     )
 
 
+def _get_oltp_db(session) -> str:
+    """从角色绑定获取 OLTP 数据库名"""
+    role = session.query(DatabaseRole).filter(DatabaseRole.role_name == "OLTP").first()
+    return role.database_name if role else None
+
+
 def _get_psa(session=None):
     if session is None:
         session = get_meta_session()
     psa_db, hash_d, _ = _get_config(session)
-    return PSAGenerator(session, psa_db, hash_d)
+    oltp_db = _get_oltp_db(session)
+    return PSAGenerator(session, psa_db, hash_d, oltp_db_name=oltp_db)
 
 
 def _get_dv(session=None):

@@ -25,6 +25,9 @@ BEGIN
                 {% for f in table.bk_fields %}
                 [{{ f.field_name }}],
                 {% endfor %}
+                {% for f in table.fk_fields %}
+                [{{ f.field_name }}],
+                {% endfor %}
                 {% for f in table.di_fields %}
                 [{{ f.field_name }}],
                 {% endfor %}
@@ -38,6 +41,9 @@ BEGIN
                 {% for f in table.bk_fields %}
                 [{{ f.field_name }}],
                 {% endfor %}
+                {% for f in table.fk_fields %}
+                [{{ f.field_name }}],
+                {% endfor %}
                 {% for f in table.di_fields %}
                 [{{ f.field_name }}],
                 {% endfor %}
@@ -49,7 +55,7 @@ BEGIN
                     {% endfor %}
                 ), 2) AS HK,
                 GETDATE() AS INSERT_TIME
-            FROM [{{ table.schema_name }}].[{{ table.object_name }}]
+            FROM [{{ oltp_db_name }}].[{{ table.schema_name }}].[{{ table.object_name }}]
 
         COMMIT TRAN
 

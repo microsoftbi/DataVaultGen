@@ -29,9 +29,9 @@ Thumbs.db
 .docker/
 
 # SQLite auto-created database
-backend/meta.db
-backend/meta.db-shm
-backend/meta.db-wal
+backend/data/meta.db
+backend/data/meta.db-shm
+backend/data/meta.db-wal
 
 # Vite auto-generated
 frontend/auto-imports.d.ts

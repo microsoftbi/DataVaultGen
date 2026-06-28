@@ -8,6 +8,17 @@ GO
 CREATE VIEW [{{ table.schema_name }}].[V_{{ table.object_name }}_MTA]
 AS
 SELECT
+    COALESCE([LOAD_DTS], GETDATE()) AS LOAD_DTS,
+    ROW_NUMBER() OVER (ORDER BY
+        {% for f in table.pk_fields %}
+        CONVERT(NVARCHAR(50), [{{ f.field_name }}]){% if not loop.last %} + {% endif %}
+        {% endfor %}
+    ) AS [SEQUENCE_NO],
+    CAST(NULL AS NCHAR(1)) AS CDC_OPERATION_CODE,
+    '{{ table.record_source }}' AS [REC_SRC],
+    '{{ table.schema_name }}.{{ table.object_name }}' AS [REC_PATH],
+    GETDATE() AS [TRANSFER_DTS],
+    CAST('FULL' AS NVARCHAR(10)) AS [LOAD_TYPE],
     CONVERT(CHAR(32), HASHBYTES('MD5',
         {% set key_fields = table.pk_fields + table.bk_fields %}
         {% for f in key_fields %}
@@ -15,12 +26,30 @@ SELECT
         {% if not loop.last %} + {% endif %}
         {% endfor %}
     ), 2) AS HK,
-    GETDATE() AS LOAD_DTS,
-    '{{ table.record_source }}' AS REC_SRC,
+    CONVERT(CHAR(32), HASHBYTES('MD5',
+        {% for f in table.di_fields %}
+        + ISNULL(TRIM(CONVERT(NVARCHAR(255), [{{ f.field_name }}])), N'') + N'{{ hash_dummy }}'
+        {% endfor %}
+    ), 2) AS HD,
+    CONVERT(CHAR(32), HASHBYTES('MD5',
+        {% for f in table.pk_fields %}
+        ISNULL(TRIM(CONVERT(NVARCHAR(255), [{{ f.field_name }}])), N'') + N'{{ hash_dummy }}'
+        {% if not loop.last %} + {% endif %}
+        {% endfor %}
+        {% for f in table.bk_fields %}
+        + ISNULL(TRIM(CONVERT(NVARCHAR(255), [{{ f.field_name }}])), N'') + N'{{ hash_dummy }}'
+        {% endfor %}
+        {% for f in table.di_fields %}
+        + ISNULL(TRIM(CONVERT(NVARCHAR(255), [{{ f.field_name }}])), N'') + N'{{ hash_dummy }}'
+        {% endfor %}
+    ), 2) AS HF,
     {% for f in table.pk_fields %}
     [{{ f.field_name }}],
     {% endfor %}
     {% for f in table.bk_fields %}
+    [{{ f.field_name }}],
+    {% endfor %}
+    {% for f in table.fk_fields %}
     [{{ f.field_name }}],
     {% endfor %}
     {% for f in table.di_fields %}

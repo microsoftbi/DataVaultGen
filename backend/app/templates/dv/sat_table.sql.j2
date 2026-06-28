@@ -2,12 +2,16 @@ USE [{{ core_db_name }}]
 GO
 
 {% for sat in dv_sats %}
+IF EXISTS (SELECT * FROM sys.tables WHERE name = '{{ sat.table_name }}' AND schema_id = SCHEMA_ID('dbo'))
+    DROP TABLE [dbo].[{{ sat.table_name }}]
+GO
 CREATE TABLE [dbo].[{{ sat.table_name }}](
     [LOAD_DTS] DATETIMEOFFSET(7) NOT NULL DEFAULT SYSDATETIMEOFFSET(),
     [CDC_OPERATION_CODE] CHAR(1) NOT NULL DEFAULT 'I',
     [REC_SRC] NVARCHAR(15) NOT NULL DEFAULT '{{ sat.record_source }}',
     [HK] CHAR(32) NOT NULL,
     [HF] CHAR(32) NULL,
+    [HD] CHAR(32) NULL,
     [LOAD_END_DTS] DATETIMEOFFSET(7) NULL,
     {% for f in sat.pk_fields %}
     [{{ f.field_name }}] {{ f.field_type }} NULL,

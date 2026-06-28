@@ -1,13 +1,50 @@
 """部署与 SQL 执行 API"""
+import base64
+import hashlib
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from app.database import get_meta_session, get_engine
-from app.models.meta import Configuration, ExecutionLog, Attribute, GenList, RecordSource
-from app.schemas import DeployRequest, ConfigResponse, ConfigUpdate
+from cryptography.fernet import Fernet
+from app.config import settings
+from app.database import get_meta_session, get_engine, build_engine
+from app.models.meta import Configuration, ExecutionLog, DatabaseRole, ConnectionConfig, Attribute, GenList, RecordSource
+from app.schemas import DeployRequest, ExecuteSqlRequest, ConfigResponse, ConfigUpdate
 from app.services.sql_executor import execute_batch, check_database_status
 from app.services.runtime_sql import RUNTIME_SQL
 from app.services.generator_psa import PSAGenerator
 from datetime import datetime
+
+# 解密密钥（与 connections.py 一致）
+_key = base64.urlsafe_b64encode(
+    hashlib.sha256(settings.secret_key.encode()).digest()
+)
+_cipher = Fernet(_key)
+
+
+def _decrypt_password(encrypted: str) -> str:
+    return _cipher.decrypt(encrypted.encode()).decode()
+
+
+def _build_role_engine(role_name: str, session=None):
+    """根据角色绑定构建带数据库名的临时引擎"""
+    close_session = False
+    if session is None:
+        session = get_meta_session()
+        close_session = True
+    try:
+        role = session.query(DatabaseRole).filter(DatabaseRole.role_name == role_name).first()
+        if not role:
+            return None, f"{role_name} 角色未配置，请先在 数据源连接 页面完成数据库角色绑定"
+
+        conn = session.query(ConnectionConfig).filter(ConnectionConfig.id == role.conn_id).first()
+        if not conn:
+            return None, f"{role_name} 角色绑定的连接 (ID={role.conn_id}) 不存在"
+
+        password = _decrypt_password(conn.password_encrypted)
+        engine = build_engine(conn.host, conn.port, role.database_name, conn.username, password)
+        return engine, None
+    finally:
+        if close_session:
+            session.close()
 
 router = APIRouter(prefix="/api", tags=["部署与配置"])
 
@@ -54,33 +91,33 @@ def update_config(data: ConfigUpdate):
 
 @router.post("/deploy/psa")
 def deploy_psa(conn_id: int = None):
-    """生成并部署全套 PSA 对象到目标库"""
-    if not conn_id:
-        raise HTTPException(400, "conn_id is required")
-
+    """生成并部署全套 PSA 对象到 STAGE 库（自动从角色绑定获取目标+数据库）"""
     session = get_meta_session()
 
-    # 检查目标连接是否可用
-    engine = get_engine(conn_id)
-    if not engine:
-        raise HTTPException(400, "Target connection not found or not initialized")
+    # 从角色绑定构建带数据库名的引擎
+    engine, err = _build_role_engine("STAGE", session)
+    if err:
+        raise HTTPException(400, err)
 
     # 生成全部 SQL
     psa_db = session.query(Configuration).filter(Configuration.config_name == "PSA_DB").first()
     hash_d = session.query(Configuration).filter(Configuration.config_name == "HASHDUMMY").first()
+    oltp_role = session.query(DatabaseRole).filter(DatabaseRole.role_name == "OLTP").first()
+    oltp_db = oltp_role.database_name if oltp_role else None
     gen = PSAGenerator(session, psa_db.config_value if psa_db else "STAGE",
-                       hash_d.config_value if hash_d else "@IAMHUSKIES@")
+                       hash_d.config_value if hash_d else "@IAMHUSKIES@",
+                       oltp_db_name=oltp_db)
 
     sql = gen.generate_combined()
 
     # 写入日志
     log = ExecutionLog(log_source="deploy/psa", log_type="N",
-                       message=f"Starting PSA deploy to connection {conn_id}")
+                       message="Starting PSA deploy to STAGE (auto-resolved)")
     session.add(log)
     session.commit()
 
-    # 执行
-    result = execute_batch(conn_id, sql)
+    # 执行（传入临时引擎，绕过缓存）
+    result = execute_batch(0, sql, engine=engine)
 
     # 记录结果
     log2 = ExecutionLog(
@@ -96,14 +133,13 @@ def deploy_psa(conn_id: int = None):
 
 @router.post("/deploy/dv")
 def deploy_dv(conn_id: int = None):
-    """生成并部署全套 DV 对象到目标库"""
-    if not conn_id:
-        raise HTTPException(400, "conn_id is required")
-
+    """生成并部署全套 DV 对象到 CORE 库（自动从角色绑定获取目标+数据库）"""
     session = get_meta_session()
-    engine = get_engine(conn_id)
-    if not engine:
-        raise HTTPException(400, "Target connection not found")
+
+    # 从角色绑定构建带数据库名的引擎
+    engine, err = _build_role_engine("CORE", session)
+    if err:
+        raise HTTPException(400, err)
 
     psa_db = session.query(Configuration).filter(Configuration.config_name == "PSA_DB").first()
     hash_d = session.query(Configuration).filter(Configuration.config_name == "HASHDUMMY").first()
@@ -119,11 +155,11 @@ def deploy_dv(conn_id: int = None):
     sql = gen.generate_combined()
 
     log = ExecutionLog(log_source="deploy/dv", log_type="N",
-                       message=f"Starting DV deploy to connection {conn_id}")
+                       message="Starting DV deploy to CORE (auto-resolved)")
     session.add(log)
     session.commit()
 
-    result = execute_batch(conn_id, sql)
+    result = execute_batch(0, sql, engine=engine)
 
     log2 = ExecutionLog(
         log_source="deploy/dv",
@@ -137,20 +173,19 @@ def deploy_dv(conn_id: int = None):
 
 @router.post("/deploy/runtime")
 def deploy_runtime(conn_id: int = None):
-    """部署运行时组件（EXECUTION_LOG 表 + USP_WRITELOG 存储过程）"""
-    if not conn_id:
-        raise HTTPException(400, "conn_id is required")
-    engine = get_engine(conn_id)
-    if not engine:
-        raise HTTPException(400, "Target connection not found")
-
+    """部署运行时组件到 STAGE 库（自动从角色绑定获取目标+数据库）"""
     session = get_meta_session()
+
+    engine, err = _build_role_engine("STAGE", session)
+    if err:
+        raise HTTPException(400, err)
+
     log = ExecutionLog(log_source="deploy/runtime", log_type="N",
-                       message=f"Deploying runtime components to connection {conn_id}")
+                       message="Deploying runtime components to STAGE (auto-resolved)")
     session.add(log)
     session.commit()
 
-    result = execute_batch(conn_id, RUNTIME_SQL)
+    result = execute_batch(0, RUNTIME_SQL, engine=engine)
 
     log2 = ExecutionLog(
         log_source="deploy/runtime",
@@ -185,6 +220,32 @@ def deploy_sql(data: DeployRequest):
     session.add(log2)
     session.commit()
 
+    return result
+
+
+@router.post("/deploy/execute")
+def execute_sql(data: ExecuteSqlRequest):
+    """执行自定义 SQL 到指定角色绑定的数据库（STAGE / CORE），自动解析目标连接"""
+    session = get_meta_session()
+
+    engine, err = _build_role_engine(data.role, session)
+    if err:
+        raise HTTPException(400, err)
+
+    log = ExecutionLog(log_source=f"execute/{data.role}", log_type="N",
+                       message=f"Executing SQL on {data.role} database")
+    session.add(log)
+    session.commit()
+
+    result = execute_batch(0, data.sql, engine=engine)
+
+    log2 = ExecutionLog(
+        log_source=f"execute/{data.role}",
+        log_type="E" if not result["success"] else "N",
+        message=result["message"],
+    )
+    session.add(log2)
+    session.commit()
     return result
 
 

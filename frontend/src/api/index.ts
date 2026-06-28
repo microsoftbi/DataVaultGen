@@ -45,32 +45,38 @@ export function testSavedConnection(id: number) {
 
 // ── 元数据导入 ────────────────────────────────────────────────
 
-export function listSourceTables(connId: number) {
+export function getOltpSource() {
+  return http.get<{ success: boolean; conn_id: number; database_name: string; connection_name: string; host: string }>('/meta/oltp-source')
+}
+
+export function listSourceTables(connId: number, databaseName?: string) {
   return http.get<{ success: boolean; tables: SourceTable[] }>('/meta/tables', {
-    params: { conn_id: connId },
+    params: { conn_id: connId, database_name: databaseName || undefined },
   })
 }
 
-export function listSourceColumns(connId: number, tableSchema: string, tableName: string) {
+export function listSourceColumns(connId: number, tableSchema: string, tableName: string, databaseName?: string) {
   return http.get<{ success: boolean; columns: SourceColumn[] }>('/meta/columns', {
-    params: { conn_id: connId, table_schema: tableSchema, table_name: tableName },
+    params: { conn_id: connId, table_schema: tableSchema, table_name: tableName, database_name: databaseName || undefined },
   })
 }
 
-export function importMeta(connId: number, tableSchema: string, tableName: string, recordSource?: string, columns?: string[]) {
+export function importMeta(connId: number, tableSchema: string, tableName: string, recordSource?: string, columns?: string[], databaseName?: string) {
   return http.post('/meta/import', {
     conn_id: connId,
     table_schema: tableSchema,
     table_name: tableName,
     record_source: recordSource,
     columns,
+    database_name: databaseName,
   })
 }
 
-export function importMetaBulk(connId: number, tables: { table_schema: string; table_name: string }[]) {
+export function importMetaBulk(connId: number, tables: { table_schema: string; table_name: string }[], databaseName?: string) {
   return http.post('/meta/import-bulk', {
     conn_id: connId,
     tables,
+    database_name: databaseName,
   })
 }
 
@@ -142,15 +148,15 @@ export function generatePsaFlow() {
 
 // ── 部署 ──────────────────────────────────────────────────────
 
-export function deployRuntime(connId: number) {
+export function deployRuntime(connId?: number) {
   return http.post('/deploy/runtime', null, { params: { conn_id: connId } })
 }
 
-export function deployDv(connId: number) {
+export function deployDv(connId?: number) {
   return http.post('/deploy/dv', null, { params: { conn_id: connId } })
 }
 
-export function deployPsa(connId: number) {
+export function deployPsa(connId?: number) {
   return http.post<DeployResult>('/deploy/psa', null, { params: { conn_id: connId } })
 }
 
@@ -160,6 +166,10 @@ export function deploySql(connId: number, sql: string, objectType = 'all') {
     sql,
     object_type: objectType,
   })
+}
+
+export function executeSql(sql: string, role = 'STAGE') {
+  return http.post<DeployResult>('/deploy/execute', { sql, role })
 }
 
 export function exportMetaConfig() {
@@ -214,6 +224,30 @@ export function getConfig() {
 
 export function updateConfig(data: { psa_db_name?: string; hash_dummy?: string }) {
   return http.put<AppConfig>('/config', data)
+}
+
+// ── 数据预览 ──────────────────────────────────────────────────
+
+export function getPreviewDatabases() {
+  return http.get<{ success: boolean; data: any }>('/preview/databases')
+}
+
+export function getPreviewObjects(connId: number, databaseName: string) {
+  return http.get('/preview/objects', {
+    params: { conn_id: connId, database_name: databaseName },
+  })
+}
+
+export function getPreviewColumns(connId: number, databaseName: string, schema: string, object: string) {
+  return http.get('/preview/columns', {
+    params: { conn_id: connId, database_name: databaseName, schema, object },
+  })
+}
+
+export function getPreviewData(connId: number, databaseName: string, schema: string, object: string, limit = 500) {
+  return http.get('/preview/data', {
+    params: { conn_id: connId, database_name: databaseName, schema, object, limit },
+  })
 }
 
 // ── 日志 ──────────────────────────────────────────────────────

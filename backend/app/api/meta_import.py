@@ -3,6 +3,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from app.database import get_meta_session
 from app.models.meta import Attribute, DatabaseRole, ConnectionConfig
+from app.models.oltp_source import OltpSource
 from app.schemas import MetaImportRequest, AttributeResponse, AttributeUpdate, AttributeBatchUpdate
 from app.services.meta_service import get_source_tables, get_source_columns, import_table_meta, ensure_gen_list
 
@@ -17,29 +18,23 @@ class BulkImportRequest(BaseModel):
 
 
 @router.get("/oltp-source")
-def get_oltp_source():
-    """获取 OLTP 角色绑定的源信息（连接ID + 数据库名）"""
+def get_oltp_sources():
+    """获取所有 OLTP 源列表"""
     session = get_meta_session()
     try:
-        role = session.query(DatabaseRole).filter(DatabaseRole.role_name == "OLTP").first()
-        if not role:
-            raise HTTPException(404, "OLTP 角色未配置，请先在 数据源连接 页面完成数据库角色绑定")
-
-        conn = session.query(ConnectionConfig).filter(ConnectionConfig.id == role.conn_id).first()
-        if not conn:
-            raise HTTPException(404, f"OLTP 角色绑定的连接 (ID={role.conn_id}) 已被删除，请重新配置")
-
-        return {
-            "success": True,
-            "conn_id": role.conn_id,
-            "database_name": role.database_name,
-            "connection_name": conn.name,
-            "host": conn.host,
-        }
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(500, f"获取 OLTP 源信息失败: {e}")
+        sources = session.query(OltpSource).all()
+        result = []
+        for src in sources:
+            conn = session.query(ConnectionConfig).filter(ConnectionConfig.id == src.conn_id).first()
+            result.append({
+                "id": src.id,
+                "record_src": src.record_src,
+                "conn_id": src.conn_id,
+                "database_name": src.database_name,
+                "connection_name": conn.name if conn else None,
+                "host": conn.host if conn else None,
+            })
+        return {"success": True, "sources": result}
     finally:
         session.close()
 

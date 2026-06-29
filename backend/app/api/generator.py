@@ -1,7 +1,8 @@
 """PSA + DV 代码生成 API"""
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
 from app.database import get_meta_session
 from app.models.meta import Configuration, DatabaseRole
+from app.models.oltp_source import OltpSource
 from app.services.generator_psa import PSAGenerator
 from app.services.generator_dv import DVGenerator
 
@@ -25,56 +26,58 @@ def _get_config(session) -> tuple[str, str, str]:
     )
 
 
-def _get_oltp_db(session) -> str:
-    """从角色绑定获取 OLTP 数据库名"""
-    role = session.query(DatabaseRole).filter(DatabaseRole.role_name == "OLTP").first()
-    return role.database_name if role else None
+def _get_oltp_db(session, record_src: str = None) -> str:
+    """从 OLTP_SOURCE 表获取数据库名"""
+    if record_src:
+        source = session.query(OltpSource).filter(OltpSource.record_src == record_src).first()
+        return source.database_name if source else None
+    return None
 
 
-def _get_psa(session=None):
+def _get_psa(session=None, record_src: str = None):
     if session is None:
         session = get_meta_session()
     psa_db, hash_d, _ = _get_config(session)
-    oltp_db = _get_oltp_db(session)
-    return PSAGenerator(session, psa_db, hash_d, oltp_db_name=oltp_db)
+    oltp_db = _get_oltp_db(session, record_src)
+    return PSAGenerator(session, psa_db, hash_d, oltp_db_name=oltp_db, record_src=record_src)
 
 
-def _get_dv(session=None):
+def _get_dv(session=None, record_src: str = None):
     if session is None:
         session = get_meta_session()
     psa_db, hash_d, core_db = _get_config(session)
-    return DVGenerator(session, psa_db, core_db, hash_d)
+    return DVGenerator(session, psa_db, core_db, hash_d, record_src=record_src)
 
 
 # ── PSA ──────────────────────────────────────────────────────
 
 @router.post("/psa/stg")
-def generate_stg():
-    gen = _get_psa()
+def generate_stg(record_src: str = Query(None, description="OLTP 源别名")):
+    gen = _get_psa(record_src=record_src)
     return {"success": True, "sql": gen.generate_stg_table()}
 
 
 @router.post("/psa/cdc")
-def generate_cdc():
-    gen = _get_psa()
+def generate_cdc(record_src: str = Query(None, description="OLTP 源别名")):
+    gen = _get_psa(record_src=record_src)
     return {"success": True, "sql": gen.generate_cdc_table()}
 
 
 @router.post("/psa/log")
-def generate_log():
-    gen = _get_psa()
+def generate_log(record_src: str = Query(None, description="OLTP 源别名")):
+    gen = _get_psa(record_src=record_src)
     return {"success": True, "sql": gen.generate_log_table()}
 
 
 @router.post("/psa/views")
-def generate_views():
-    gen = _get_psa()
+def generate_views(record_src: str = Query(None, description="OLTP 源别名")):
+    gen = _get_psa(record_src=record_src)
     return {"success": True, "sql": gen.generate_v_mta() + "\n\n" + gen.generate_v_current()}
 
 
 @router.post("/psa/usps")
-def generate_usps():
-    gen = _get_psa()
+def generate_usps(record_src: str = Query(None, description="OLTP 源别名")):
+    gen = _get_psa(record_src=record_src)
     return {
         "success": True,
         "sql": gen.generate_usp_stg() + "\n\n" + gen.generate_usp_cdc() + "\n\n" + gen.generate_usp_log(),
@@ -82,62 +85,62 @@ def generate_usps():
 
 
 @router.post("/psa/all")
-def generate_psa_all():
-    gen = _get_psa()
+def generate_psa_all(record_src: str = Query(None, description="OLTP 源别名")):
+    gen = _get_psa(record_src=record_src)
     return {"success": True, "sql": gen.generate_combined()}
 
 
 @router.post("/psa/flow")
-def generate_flow():
-    gen = _get_psa()
+def generate_flow(record_src: str = Query(None, description="OLTP 源别名")):
+    gen = _get_psa(record_src=record_src)
     return {"success": True, "sql": gen.generate_execute_flow()}
 
 
 # ── DV ───────────────────────────────────────────────────────
 
 @router.post("/dv/hub")
-def generate_dv_hub():
-    gen = _get_dv()
+def generate_dv_hub(record_src: str = Query(None, description="OLTP 源别名")):
+    gen = _get_dv(record_src=record_src)
     return {"success": True, "sql": gen.generate_hub_table()}
 
 
 @router.post("/dv/sat")
-def generate_dv_sat():
-    gen = _get_dv()
+def generate_dv_sat(record_src: str = Query(None, description="OLTP 源别名")):
+    gen = _get_dv(record_src=record_src)
     return {"success": True, "sql": gen.generate_sat_table()}
 
 
 @router.post("/dv/link")
-def generate_dv_link():
-    gen = _get_dv()
+def generate_dv_link(record_src: str = Query(None, description="OLTP 源别名")):
+    gen = _get_dv(record_src=record_src)
     return {"success": True, "sql": gen.generate_link_table()}
 
 
 @router.post("/dv/usp-hub")
-def generate_dv_usp_hub():
-    gen = _get_dv()
+def generate_dv_usp_hub(record_src: str = Query(None, description="OLTP 源别名")):
+    gen = _get_dv(record_src=record_src)
     return {"success": True, "sql": gen.generate_usp_hub()}
 
 
 @router.post("/dv/usp-sat")
-def generate_dv_usp_sat():
-    gen = _get_dv()
+def generate_dv_usp_sat(record_src: str = Query(None, description="OLTP 源别名")):
+    gen = _get_dv(record_src=record_src)
     return {"success": True, "sql": gen.generate_usp_sat()}
 
 
 @router.post("/dv/usp-link")
-def generate_dv_usp_link():
-    gen = _get_dv()
+def generate_dv_usp_link(record_src: str = Query(None, description="OLTP 源别名")):
+    gen = _get_dv(record_src=record_src)
     return {"success": True, "sql": gen.generate_usp_link()}
 
 
 @router.post("/dv/all")
-def generate_dv_all():
-    gen = _get_dv()
+def generate_dv_all(record_src: str = Query(None, description="OLTP 源别名")):
+    gen = _get_dv(record_src=record_src)
     return {"success": True, "sql": gen.generate_combined()}
 
 
 @router.post("/dv/flow")
-def generate_dv_flow():
-    gen = _get_dv()
+def generate_dv_flow(record_src: str = Query(None, description="OLTP 源别名")):
+    gen = _get_dv(record_src=record_src)
     return {"success": True, "sql": gen.generate_execute_flow()}

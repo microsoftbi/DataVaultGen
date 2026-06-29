@@ -7,29 +7,34 @@ from sqlalchemy.orm import Session
 class PSAGenerator:
     """PSA Type 2 全套代码生成器"""
 
-    def __init__(self, session: Session, psa_db_name: str, hash_dummy: str = "@IAMHUSKIES@", oltp_db_name: str = None):
+    def __init__(self, session: Session, psa_db_name: str, hash_dummy: str = "@IAMHUSKIES@",
+                 oltp_db_name: str = None, record_src: str = None):
         self.session = session
         self.psa_db_name = psa_db_name
         self.hash_dummy = hash_dummy
         self.oltp_db_name = oltp_db_name
+        self.record_src = record_src
         self.template = TemplateEngine()
 
     def _load_tables(self) -> list[dict]:
-        """从 META 加载所有需要生成的表元数据"""
-        rows = (
-            self.session.query(Attribute)
-            .filter(Attribute.is_pk.is_(True) | Attribute.is_bk.is_(True) | Attribute.is_di.is_(True) | Attribute.is_fk.is_(True))
-            .all()
+        """从 META 加载需要生成的表元数据（按 record_src 过滤）"""
+        query = self.session.query(Attribute).filter(
+            Attribute.is_pk.is_(True) | Attribute.is_bk.is_(True) |
+            Attribute.is_di.is_(True) | Attribute.is_fk.is_(True)
         )
+        if self.record_src:
+            query = query.filter(Attribute.record_src == self.record_src)
+        rows = query.all()
 
         table_map: dict[str, dict] = {}
         for row in rows:
             key = row.table_name
             if key not in table_map:
+                prefix = f"{self.record_src}_" if self.record_src else ""
                 table_map[key] = {
-                    "object_name": row.table_name,
+                    "object_name": f"{prefix}{row.table_name}",
                     "schema_name": "dbo",
-                    "record_source": "dbo",
+                    "record_source": self.record_src or "dbo",
                     "pk_fields": [],
                     "bk_fields": [],
                     "fk_fields": [],

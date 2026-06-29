@@ -26,6 +26,13 @@
         </div>
       </template>
 
+      <div style="margin-bottom: 16px; display: flex; align-items: center; gap: 12px;">
+        <span style="font-weight: 500; font-size: 14px;">{{ $t('generate.selectOltpSource') }}:</span>
+        <el-select v-model="selectedRecordSrc" :placeholder="$t('generate.selectOltpSourcePh')" style="width: 300px" @change="onSourceChange">
+          <el-option v-for="src in oltpSources" :key="src.record_src" :label="`${src.record_src} — ${src.connection_name} / ${src.database_name}`" :value="src.record_src" />
+        </el-select>
+      </div>
+
       <el-tabs v-model="activeTab" type="card" @tab-change="onTabChange">
         <el-tab-pane :label="$t('generate.psaTabs.stg')" name="stg" />
         <el-tab-pane :label="$t('generate.psaTabs.cdc')" name="cdc" />
@@ -55,7 +62,7 @@ import 'highlight.js/styles/github-dark.css'
 import {
   generatePsaStg, generatePsaCdc, generatePsaLog,
   generatePsaViews, generatePsaUsps, generatePsaAll, generatePsaFlow,
-  executeSql,
+  executeSql, listOltpSources,
 } from '@/api'
 
 const { t } = useI18n()
@@ -67,14 +74,31 @@ const executing = ref(false)
 const copySuccess = ref(false)
 const activeTab = ref('stg')
 
+const oltpSources = ref<any[]>([])
+const selectedRecordSrc = ref('')
+
 const lineCount = computed(() => {
   const c = sqlResult.value; return c ? c.split('\n').length : 0
 })
 
-const apiMap: Record<string, () => Promise<any>> = {
-  stg: generatePsaStg, cdc: generatePsaCdc, log: generatePsaLog,
-  views: generatePsaViews, usps: generatePsaUsps,
-  all: generatePsaAll, flow: generatePsaFlow,
+const apiMap: Record<string, (rs: string) => Promise<any>> = {
+  stg: (rs) => generatePsaStg(rs), cdc: (rs) => generatePsaCdc(rs), log: (rs) => generatePsaLog(rs),
+  views: (rs) => generatePsaViews(rs), usps: (rs) => generatePsaUsps(rs),
+  all: (rs) => generatePsaAll(rs), flow: (rs) => generatePsaFlow(rs),
+}
+
+async function loadOltpSources() {
+  try {
+    const res = await listOltpSources()
+    oltpSources.value = res.data
+    if (oltpSources.value.length > 0) {
+      selectedRecordSrc.value = oltpSources.value[0].record_src
+    }
+  } catch { /* ignore */ }
+}
+
+function onSourceChange() {
+  onTabChange(activeTab.value)
 }
 
 watch(sqlResult, async () => {
@@ -83,12 +107,16 @@ watch(sqlResult, async () => {
 })
 
 async function onTabChange(tabName: string | number) {
+  if (!selectedRecordSrc.value) {
+    ElMessage.warning(t('generate.selectOltpSourcePh'))
+    return
+  }
   const apiFn = apiMap[tabName as string]
   if (!apiFn) return
   generating.value = true
   sqlResult.value = ''
   try {
-    const res = await apiFn()
+    const res = await apiFn(selectedRecordSrc.value)
     const sql = res.data?.sql || ''
     sqlResult.value = sql
     if (!sql) ElMessage.warning(t('generate.generateEmpty'))
@@ -140,7 +168,7 @@ async function executeCurrentSql() {
   }
 }
 
-onMounted(() => { onTabChange('stg') })
+onMounted(() => { loadOltpSources(); onTabChange('stg') })
 </script>
 
 <style scoped>

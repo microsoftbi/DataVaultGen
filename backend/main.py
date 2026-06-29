@@ -12,6 +12,7 @@ import uvicorn
 from app.config import settings
 from app.api import connections, meta_import, objects, generator, deploy, dv_config, db_roles, data_preview, oltp_sources
 from app.models.meta import ConnectionConfig, Configuration, init_meta_db
+from app.models.oltp_source import OltpSource
 from app.database import get_meta_engine, get_meta_session, build_engine, register_engine
 
 
@@ -57,6 +58,17 @@ async def lifespan(app: FastAPI):
                 register_engine(row.id, engine)
             except Exception:
                 pass  # 跳过无法恢复的连接
+        # 也注册 OLTP 源的引擎
+        sources = session.query(OltpSource).all()
+        for src in sources:
+            try:
+                conn_row = session.query(ConnectionConfig).filter(ConnectionConfig.id == src.conn_id).first()
+                if conn_row:
+                    password = connections._decrypt(conn_row.password_encrypted)
+                    engine = build_engine(conn_row.host, conn_row.port, src.database_name, conn_row.username, password)
+                    register_engine(src.conn_id, engine)
+            except Exception:
+                pass
         session.close()
     except Exception:
         pass

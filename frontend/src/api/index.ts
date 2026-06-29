@@ -6,6 +6,7 @@ import type {
   ObjectItem, GenerateResult, DeployResult,
   DatabaseStatus, LogEntry, AppConfig,
   DatabaseRolesData, DatabaseRoleUpdate,
+  OltpSource, OltpSourceCreate, OltpSourceUpdate,
 } from '@/types'
 
 const http = axios.create({
@@ -45,8 +46,8 @@ export function testSavedConnection(id: number) {
 
 // ── 元数据导入 ────────────────────────────────────────────────
 
-export function getOltpSource() {
-  return http.get<{ success: boolean; conn_id: number; database_name: string; connection_name: string; host: string }>('/meta/oltp-source')
+export function getOltpSources() {
+  return http.get<{ success: boolean; sources: any[] }>('/meta/oltp-source')
 }
 
 export function listSourceTables(connId: number, databaseName?: string) {
@@ -118,32 +119,32 @@ export function batchUpdateObjects(updates: any[]) {
 
 // ── 代码生成 ──────────────────────────────────────────────────
 
-export function generatePsaAll() {
-  return http.post<{ success: boolean; sql: string }>('/generate/psa/all')
+export function generatePsaAll(recordSrc?: string) {
+  return http.post<{ success: boolean; sql: string }>('/generate/psa/all', null, { params: { record_src: recordSrc } })
 }
 
-export function generatePsaStg() {
-  return http.post<{ success: boolean; sql: string }>('/generate/psa/stg')
+export function generatePsaStg(recordSrc?: string) {
+  return http.post<{ success: boolean; sql: string }>('/generate/psa/stg', null, { params: { record_src: recordSrc } })
 }
 
-export function generatePsaCdc() {
-  return http.post<{ success: boolean; sql: string }>('/generate/psa/cdc')
+export function generatePsaCdc(recordSrc?: string) {
+  return http.post<{ success: boolean; sql: string }>('/generate/psa/cdc', null, { params: { record_src: recordSrc } })
 }
 
-export function generatePsaLog() {
-  return http.post<{ success: boolean; sql: string }>('/generate/psa/log')
+export function generatePsaLog(recordSrc?: string) {
+  return http.post<{ success: boolean; sql: string }>('/generate/psa/log', null, { params: { record_src: recordSrc } })
 }
 
-export function generatePsaViews() {
-  return http.post<{ success: boolean; sql: string }>('/generate/psa/views')
+export function generatePsaViews(recordSrc?: string) {
+  return http.post<{ success: boolean; sql: string }>('/generate/psa/views', null, { params: { record_src: recordSrc } })
 }
 
-export function generatePsaUsps() {
-  return http.post<{ success: boolean; sql: string }>('/generate/psa/usps')
+export function generatePsaUsps(recordSrc?: string) {
+  return http.post<{ success: boolean; sql: string }>('/generate/psa/usps', null, { params: { record_src: recordSrc } })
 }
 
-export function generatePsaFlow() {
-  return http.post<{ success: boolean; sql: string }>('/generate/psa/flow')
+export function generatePsaFlow(recordSrc?: string) {
+  return http.post<{ success: boolean; sql: string }>('/generate/psa/flow', null, { params: { record_src: recordSrc } })
 }
 
 // ── 部署 ──────────────────────────────────────────────────────
@@ -200,14 +201,14 @@ export function autoConfigureDv(tableName: string) {
 
 // ── DV 生成 ──────────────────────────────────────────────────────
 
-export function generateDvHub() { return http.post('/generate/dv/hub') }
-export function generateDvSat() { return http.post('/generate/dv/sat') }
-export function generateDvLink() { return http.post('/generate/dv/link') }
-export function generateDvUspHub() { return http.post('/generate/dv/usp-hub') }
-export function generateDvUspSat() { return http.post('/generate/dv/usp-sat') }
-export function generateDvUspLink() { return http.post('/generate/dv/usp-link') }
-export function generateDvAll() { return http.post('/generate/dv/all') }
-export function generateDvFlow() { return http.post('/generate/dv/flow') }
+export function generateDvHub(recordSrc?: string) { return http.post('/generate/dv/hub', null, { params: { record_src: recordSrc } }) }
+export function generateDvSat(recordSrc?: string) { return http.post('/generate/dv/sat', null, { params: { record_src: recordSrc } }) }
+export function generateDvLink(recordSrc?: string) { return http.post('/generate/dv/link', null, { params: { record_src: recordSrc } }) }
+export function generateDvUspHub(recordSrc?: string) { return http.post('/generate/dv/usp-hub', null, { params: { record_src: recordSrc } }) }
+export function generateDvUspSat(recordSrc?: string) { return http.post('/generate/dv/usp-sat', null, { params: { record_src: recordSrc } }) }
+export function generateDvUspLink(recordSrc?: string) { return http.post('/generate/dv/usp-link', null, { params: { record_src: recordSrc } }) }
+export function generateDvAll(recordSrc?: string) { return http.post('/generate/dv/all', null, { params: { record_src: recordSrc } }) }
+export function generateDvFlow(recordSrc?: string) { return http.post('/generate/dv/flow', null, { params: { record_src: recordSrc } }) }
 
 export function getDeployDiff(connId: number) {
   return http.get('/deploy/diff', { params: { conn_id: connId } })
@@ -264,11 +265,29 @@ export function clearLogs() {
 // ── 数据库角色绑定 ────────────────────────────────────────────
 
 export function getDbRoles() {
-  return http.get<{ success: boolean; data: DatabaseRolesData }>('/db-roles')
+  return http.get<{ success: boolean; data: any }>('/db-roles')
 }
 
-export function updateDbRoles(data: { oltp: DatabaseRoleUpdate; stage: DatabaseRoleUpdate; core: DatabaseRoleUpdate }) {
-  return http.put<{ success: boolean; data: DatabaseRolesData }>('/db-roles', data)
+export function updateDbRoles(data: { stage: DatabaseRoleUpdate; core: DatabaseRoleUpdate }) {
+  return http.put<{ success: boolean; data: any }>('/db-roles', data)
+}
+
+// ── OLTP 源管理 ──────────────────────────────────────────────
+
+export function listOltpSources() {
+  return http.get<OltpSource[]>('/oltp-sources')
+}
+
+export function createOltpSource(data: OltpSourceCreate) {
+  return http.post<OltpSource>('/oltp-sources', data)
+}
+
+export function updateOltpSource(id: number, data: OltpSourceUpdate) {
+  return http.put<OltpSource>(`/oltp-sources/${id}`, data)
+}
+
+export function deleteOltpSource(id: number) {
+  return http.delete(`/oltp-sources/${id}`)
 }
 
 // ── 健康检查 ──────────────────────────────────────────────────

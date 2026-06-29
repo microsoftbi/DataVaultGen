@@ -134,9 +134,30 @@ export interface DatabaseRoleUpdate {
 }
 
 export interface DatabaseRolesData {
-  oltp: DatabaseRoleItem | null
   stage: DatabaseRoleItem | null
   core: DatabaseRoleItem | null
+}
+
+// OLTP 源管理
+export interface OltpSource {
+  id: number
+  record_src: string
+  conn_id: number
+  database_name: string
+  connection_name: string | null
+  created_at: string | null
+}
+
+export interface OltpSourceCreate {
+  record_src: string
+  conn_id: number
+  database_name: string
+}
+
+export interface OltpSourceUpdate {
+  record_src?: string
+  conn_id?: number
+  database_name?: string
 }
 
 // API 通用响应

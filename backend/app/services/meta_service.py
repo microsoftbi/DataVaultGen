@@ -184,6 +184,7 @@ def import_table_meta(
             is_bk=is_bk,
             is_pk=is_bk,      # BK 默认也设置为 PK
             is_di=not is_bk,  # BK 不是 DI，其余字段默认 DI
+            record_src=record_source,  # 记录来源 OLTP 源
         )
         session.add(attr)
         imported += 1

@@ -56,31 +56,6 @@
         style="max-width: 700px"
       >
         <el-form-item
-          :label="$t('connection.oltpLabel')"
-          prop="oltp.conn_id"
-          :rules="[{ required: true, message: t('connection.selectConnRequired'), trigger: 'change' }]"
-        >
-          <el-select
-            v-model="rolesForm.oltp.conn_id"
-            :placeholder="$t('connection.selectConn')"
-            style="width: 250px; margin-right: 12px"
-            @change="rolesForm.oltp.conn_id = $event"
-          >
-            <el-option
-              v-for="c in connectionStore.connections"
-              :key="c.id"
-              :label="c.name"
-              :value="c.id"
-            />
-          </el-select>
-          <el-input
-            v-model="rolesForm.oltp.database_name"
-            :placeholder="$t('connection.inputDbNamePh')"
-            style="width: 200px"
-          />
-        </el-form-item>
-
-        <el-form-item
           :label="$t('connection.stageLabel')"
           prop="stage.conn_id"
           :rules="[{ required: true, message: t('connection.selectConnRequired'), trigger: 'change' }]"
@@ -129,6 +104,64 @@
         </el-form-item>
       </el-form>
     </el-card>
+
+    <!-- ── 第三部分：OLTP 源管理 ── -->
+    <el-card class="section-card" style="margin-top: 20px">
+      <template #header>
+        <div class="section-header">
+          <span>{{ $t('connection.oltpSourceSection') }}</span>
+          <el-button type="primary" size="small" @click="openAddOltpSource">
+            {{ $t('connection.addOltpSource') }}
+          </el-button>
+        </div>
+      </template>
+
+      <el-table :data="oltpSources" v-loading="oltpLoading" border stripe size="small" style="width: 100%">
+        <el-table-column prop="record_src" :label="$t('connection.recordSrc')" width="160" />
+        <el-table-column :label="$t('connection.oltpConnColumn')" min-width="200">
+          <template #default="{ row }">
+            {{ row.connection_name || '-' }} (ID: {{ row.conn_id }})
+          </template>
+        </el-table-column>
+        <el-table-column prop="database_name" :label="$t('connection.dbName')" width="180" />
+        <el-table-column :label="$t('common.operation')" width="120" align="center">
+          <template #default="{ row }">
+            <el-button size="small" text @click="openEditOltpSource(row)">{{ $t('common.edit') }}</el-button>
+            <el-button size="small" text type="danger" @click="handleDeleteOltpSource(row)">{{ $t('common.delete') }}</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+    </el-card>
+
+    <!-- OLTP 源新增/编辑 对话框 -->
+    <el-dialog
+      v-model="oltpDialogVisible"
+      :title="isEditingOltp ? $t('connection.editOltpSource') : $t('connection.addOltpSource')"
+      width="480px"
+      :close-on-click-modal="false"
+    >
+      <el-form ref="oltpFormRef" :model="oltpForm" :rules="oltpFormRules" label-width="140px">
+        <el-form-item :label="$t('connection.recordSrc')" prop="record_src">
+          <el-input v-model="oltpForm.record_src" :placeholder="$t('connection.recordSrcPlaceholder')" />
+        </el-form-item>
+        <el-form-item :label="$t('connection.selectOltpConn')" prop="conn_id"
+          :rules="[{ required: true, message: t('connection.selectOltpConnRequired'), trigger: 'change' }]"
+        >
+          <el-select v-model="oltpForm.conn_id" :placeholder="$t('connection.selectConn')" style="width: 100%">
+            <el-option v-for="c in connectionStore.connections" :key="c.id" :label="c.name" :value="c.id" />
+          </el-select>
+        </el-form-item>
+        <el-form-item :label="$t('connection.dbName')" prop="database_name"
+          :rules="[{ required: true, message: t('connection.inputDbNamePh'), trigger: 'blur' }]"
+        >
+          <el-input v-model="oltpForm.database_name" :placeholder="$t('connection.dbNamePlaceholder')" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="oltpDialogVisible = false">{{ $t('common.cancel') }}</el-button>
+        <el-button type="primary" :loading="savingOltp" @click="handleSaveOltpSource">{{ $t('common.save') }}</el-button>
+      </template>
+    </el-dialog>
 
     <!-- 新建 / 编辑 对话框 -->
     <el-dialog
@@ -200,7 +233,7 @@ import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import type { Connection } from '@/types'
-import type { DatabaseRoleUpdate } from '@/types'
+import type { DatabaseRoleUpdate, OltpSource, OltpSourceCreate } from '@/types'
 import * as api from '@/api'
 import { useConnectionStore } from '@/stores/connection'
 
@@ -212,6 +245,7 @@ const connectionStore = useConnectionStore()
 onMounted(() => {
   connectionStore.fetchAll()
   fetchRoles()
+  fetchOltpSources()
 })
 
 // ── 对话框状态 ────────────────────────────────────────────────────
@@ -374,11 +408,9 @@ async function handleDelete(row: Connection) {
 const rolesFormRef = ref<FormInstance>()
 const savingRoles = ref(false)
 const rolesForm = reactive<{
-  oltp: DatabaseRoleUpdate
   stage: DatabaseRoleUpdate
   core: DatabaseRoleUpdate
 }>({
-  oltp: { conn_id: 0, database_name: '' },
   stage: { conn_id: 0, database_name: '' },
   core: { conn_id: 0, database_name: '' },
 })
@@ -388,10 +420,6 @@ async function fetchRoles() {
     const res = await api.getDbRoles()
     const data = res.data.data
     if (data) {
-      if (data.oltp) {
-        rolesForm.oltp.conn_id = data.oltp.conn_id
-        rolesForm.oltp.database_name = data.oltp.database_name
-      }
       if (data.stage) {
         rolesForm.stage.conn_id = data.stage.conn_id
         rolesForm.stage.database_name = data.stage.database_name
@@ -413,7 +441,6 @@ async function handleSaveRoles() {
   savingRoles.value = true
   try {
     await api.updateDbRoles({
-      oltp: rolesForm.oltp,
       stage: rolesForm.stage,
       core: rolesForm.core,
     })
@@ -423,6 +450,82 @@ async function handleSaveRoles() {
   } finally {
     savingRoles.value = false
   }
+}
+
+// ── OLTP 源管理 ──────────────────────────────────────────────
+
+const oltpSources = ref<OltpSource[]>([])
+const oltpLoading = ref(false)
+
+async function fetchOltpSources() {
+  oltpLoading.value = true
+  try {
+    const res = await api.listOltpSources()
+    oltpSources.value = res.data
+  } catch {
+    // ignore
+  } finally { oltpLoading.value = false }
+}
+
+const oltpDialogVisible = ref(false)
+const isEditingOltp = ref(false)
+const editingOltpId = ref<number | null>(null)
+const savingOltp = ref(false)
+const oltpFormRef = ref<any>(null)
+const oltpForm = reactive<OltpSourceCreate>({
+  record_src: '', conn_id: 0, database_name: '',
+})
+const oltpFormRules = {
+  record_src: [{ required: true, message: t('connection.recordSrcRequired'), trigger: 'blur' }],
+}
+
+function openAddOltpSource() {
+  isEditingOltp.value = false
+  editingOltpId.value = null
+  oltpForm.record_src = ''
+  oltpForm.conn_id = 0
+  oltpForm.database_name = ''
+  oltpDialogVisible.value = true
+}
+
+function openEditOltpSource(row: OltpSource) {
+  isEditingOltp.value = true
+  editingOltpId.value = row.id
+  oltpForm.record_src = row.record_src
+  oltpForm.conn_id = row.conn_id
+  oltpForm.database_name = row.database_name
+  oltpDialogVisible.value = true
+}
+
+async function handleSaveOltpSource() {
+  const valid = await oltpFormRef.value?.validate().catch(() => false)
+  if (!valid) return
+  savingOltp.value = true
+  try {
+    if (isEditingOltp.value && editingOltpId.value) {
+      await api.updateOltpSource(editingOltpId.value, oltpForm)
+    } else {
+      await api.createOltpSource(oltpForm as OltpSourceCreate)
+    }
+    oltpDialogVisible.value = false
+    ElMessage.success(t('common.success'))
+    await fetchOltpSources()
+  } catch (e: any) {
+    ElMessage.error(e?.response?.data?.message || e.message)
+  } finally { savingOltp.value = false }
+}
+
+async function handleDeleteOltpSource(row: OltpSource) {
+  try {
+    await ElMessageBox.confirm(
+      t('connection.deleteOltpSourceConfirm', { name: row.record_src }),
+      t('connection.confirmDeleteTitle'),
+      { confirmButtonText: t('common.delete'), cancelButtonText: t('common.cancel'), type: 'warning' },
+    )
+    await api.deleteOltpSource(row.id)
+    ElMessage.success(t('common.success'))
+    await fetchOltpSources()
+  } catch { /* cancelled */ }
 }
 </script>
 

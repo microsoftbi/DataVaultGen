@@ -1,7 +1,7 @@
 """对象列表管理 API"""
 from fastapi import APIRouter, HTTPException
 from app.database import get_meta_session
-from app.models.meta import GenList
+from app.models.meta import GenList, Attribute
 from app.schemas import ObjectListItem, ObjectListUpdate, ObjectListBatchUpdate
 from sqlalchemy import text
 
@@ -11,8 +11,28 @@ router = APIRouter(prefix="/api/objects", tags=["对象列表"])
 @router.get("")
 def list_objects():
     session = get_meta_session()
-    rows = session.query(GenList).order_by(GenList.table_name).all()
-    return [ObjectListItem.model_validate(r) for r in rows]
+    # 关联 Attribute 获取 record_src
+    sub = session.query(
+        Attribute.table_name,
+        Attribute.record_src,
+    ).distinct().subquery()
+
+    rows = session.query(GenList, sub.c.record_src).outerjoin(
+        sub, GenList.table_name == sub.c.table_name
+    ).order_by(GenList.table_name).all()
+
+    result = []
+    for gen, record_src in rows:
+        result.append({
+            "id": gen.id,
+            "table_catalog": gen.table_catalog,
+            "table_name": gen.table_name,
+            "schema_name": gen.schema_name,
+            "is_gen": gen.is_gen,
+            "is_full_load": gen.is_full_load,
+            "record_src": record_src,
+        })
+    return result
 
 
 @router.post("/init")

@@ -26,6 +26,13 @@
         </div>
       </template>
 
+      <div style="margin-bottom: 16px; display: flex; align-items: center; gap: 12px;">
+        <span style="font-weight: 500; font-size: 14px;">{{ $t('generate.selectOltpSource') }}:</span>
+        <el-select v-model="selectedRecordSrc" :placeholder="$t('generate.selectOltpSourcePh')" style="width: 300px" @change="onSourceChange">
+          <el-option v-for="src in oltpSources" :key="src.record_src" :label="`${src.record_src} — ${src.connection_name} / ${src.database_name}`" :value="src.record_src" />
+        </el-select>
+      </div>
+
       <el-tabs v-model="activeTab" type="card" @tab-change="onTabChange">
         <el-tab-pane :label="$t('generate.dvTabs.hub')" name="dv_hub" />
         <el-tab-pane :label="$t('generate.dvTabs.sat')" name="dv_sat" />
@@ -57,7 +64,7 @@ import {
   generateDvHub, generateDvSat, generateDvLink,
   generateDvUspHub, generateDvUspSat, generateDvUspLink, generateDvAll,
   generateDvFlow,
-  executeSql,
+  executeSql, listOltpSources,
 } from '@/api'
 
 const { t } = useI18n()
@@ -69,15 +76,32 @@ const executing = ref(false)
 const copySuccess = ref(false)
 const activeTab = ref('dv_hub')
 
+const oltpSources = ref<any[]>([])
+const selectedRecordSrc = ref('')
+
 const lineCount = computed(() => {
   const c = sqlResult.value; return c ? c.split('\n').length : 0
 })
 
-const apiMap: Record<string, () => Promise<any>> = {
-  dv_hub: generateDvHub, dv_sat: generateDvSat, dv_link: generateDvLink,
-  dv_usp_hub: generateDvUspHub, dv_usp_sat: generateDvUspSat,
-  dv_usp_link: generateDvUspLink, dv_all: generateDvAll,
-  dv_flow: generateDvFlow,
+const apiMap: Record<string, (rs: string) => Promise<any>> = {
+  dv_hub: (rs) => generateDvHub(rs), dv_sat: (rs) => generateDvSat(rs), dv_link: (rs) => generateDvLink(rs),
+  dv_usp_hub: (rs) => generateDvUspHub(rs), dv_usp_sat: (rs) => generateDvUspSat(rs),
+  dv_usp_link: (rs) => generateDvUspLink(rs), dv_all: (rs) => generateDvAll(rs),
+  dv_flow: (rs) => generateDvFlow(rs),
+}
+
+async function loadOltpSources() {
+  try {
+    const res = await listOltpSources()
+    oltpSources.value = res.data
+    if (oltpSources.value.length > 0) {
+      selectedRecordSrc.value = oltpSources.value[0].record_src
+    }
+  } catch { /* ignore */ }
+}
+
+function onSourceChange() {
+  onTabChange(activeTab.value)
 }
 
 watch(sqlResult, async () => {
@@ -86,12 +110,16 @@ watch(sqlResult, async () => {
 })
 
 async function onTabChange(tabName: string | number) {
+  if (!selectedRecordSrc.value) {
+    ElMessage.warning(t('generate.selectOltpSourcePh'))
+    return
+  }
   const apiFn = apiMap[tabName as string]
   if (!apiFn) return
   generating.value = true
   sqlResult.value = ''
   try {
-    const res = await apiFn()
+    const res = await apiFn(selectedRecordSrc.value)
     const sql = res.data?.sql || ''
     sqlResult.value = sql
     if (!sql) ElMessage.warning(t('generate.generateEmpty'))
@@ -143,7 +171,7 @@ async function executeCurrentSql() {
   }
 }
 
-onMounted(() => { onTabChange('dv_hub') })
+onMounted(() => { loadOltpSources(); onTabChange('dv_hub') })
 </script>
 
 <style scoped>

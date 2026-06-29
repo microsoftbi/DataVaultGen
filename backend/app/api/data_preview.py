@@ -3,6 +3,7 @@ from fastapi import APIRouter, HTTPException
 from sqlalchemy import text
 from app.database import get_meta_session, build_engine
 from app.models.meta import DatabaseRole, ConnectionConfig
+from app.models.oltp_source import OltpSource
 from app.config import settings
 
 router = APIRouter(prefix="/api/preview", tags=["数据预览"])
@@ -42,11 +43,25 @@ def _build_role_engine(role_name: str):
 
 @router.get("/databases")
 def get_databases():
-    """返回三个角色绑定的数据库信息"""
+    """返回 OLTP/STAGE/CORE 的数据库信息（OLTP 返回所有源列表）"""
     session = get_meta_session()
     try:
         result = {}
-        for role_name in ("OLTP", "STAGE", "CORE"):
+        # OLTP: 返回所有 OLTP 源
+        sources = session.query(OltpSource).all()
+        oltp_list = []
+        for src in sources:
+            conn = session.query(ConnectionConfig).filter(ConnectionConfig.id == src.conn_id).first()
+            oltp_list.append({
+                "conn_id": src.conn_id,
+                "database_name": src.database_name,
+                "connection_name": conn.name if conn else None,
+                "record_src": src.record_src,
+            })
+        result["oltp"] = oltp_list
+
+        # STAGE, CORE: unchanged
+        for role_name in ("STAGE", "CORE"):
             role = session.query(DatabaseRole).filter(DatabaseRole.role_name == role_name).first()
             if role:
                 conn = session.query(ConnectionConfig).filter(ConnectionConfig.id == role.conn_id).first()

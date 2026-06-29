@@ -168,81 +168,143 @@ async function loadTree() {
     // 2. 并行获取每个库的对象列表
     const nodes: TreeNode[] = []
     for (const [key, label] of [['oltp', 'OLTP'], ['stage', 'STAGE'], ['core', 'CORE']]) {
-      const info = dbData[key]
-      if (!info) {
-        nodes.push({ id: key, label, type: 'database', children: [
-          { id: `${key}-empty`, label: t('dataPreview.notConfigured'), type: 'category' as const },
-        ]})
-        continue
+      if (key === 'oltp' && Array.isArray(dbData.oltp)) {
+        // OLTP 现在是一个数组，每个元素代表一个数据源
+        const oltpChildren: TreeNode[] = []
+        for (const src of dbData.oltp) {
+          try {
+            const objRes: any = await api.getPreviewObjects(src.conn_id, src.database_name)
+            const objs = objRes.data || {}
+            // Tables
+            const tables: string[] = objs.tables || []
+            for (const t of tables) {
+              const parts = t.split('.')
+              const object = parts[1] || t
+              oltpChildren.push({
+                id: `oltp_${src.record_src}_${t}`,
+                label: `${src.record_src}_${object}`,
+                type: 'table',
+                connId: src.conn_id,
+                dbName: src.database_name,
+                schema: parts[0],
+                objectName: object,
+                fullName: `${src.record_src}_${object}`,
+              })
+            }
+            // Views
+            const views: string[] = objs.views || []
+            for (const v of views) {
+              const parts = v.split('.')
+              oltpChildren.push({
+                id: `oltp_view_${src.record_src}_${v}`,
+                label: `${src.record_src}_${parts[1] || v}`,
+                type: 'view',
+                connId: src.conn_id,
+                dbName: src.database_name,
+                schema: parts[0],
+                objectName: parts[1] || v,
+                fullName: `${src.record_src}_${parts[1] || v}`,
+              })
+            }
+          } catch { /* skip unreachable source */ }
+        }
+
+        const oltpDbNode: TreeNode = {
+          id: 'oltp',
+          label: 'OLTP',
+          type: 'database',
+          children: [],
+        }
+        const tableChildren = oltpChildren.filter(c => c.type === 'table')
+        if (tableChildren.length) {
+          oltpDbNode.children!.push({ id: 'oltp-tables', label: `Tables (${tableChildren.length})`, type: 'category', children: tableChildren })
+        }
+        const viewChildren = oltpChildren.filter(c => c.type === 'view')
+        if (viewChildren.length) {
+          oltpDbNode.children!.push({ id: 'oltp-views', label: `Views (${viewChildren.length})`, type: 'category', children: viewChildren })
+        }
+        if (oltpDbNode.children!.length === 0) {
+          oltpDbNode.children!.push({ id: 'oltp-empty', label: t('dataPreview.notConfigured'), type: 'category' })
+        }
+        nodes.push(oltpDbNode)
+      } else {
+        // STAGE and CORE - existing logic
+        const info = dbData[key]
+        if (!info) {
+          nodes.push({ id: key, label, type: 'database', children: [
+            { id: `${key}-empty`, label: t('dataPreview.notConfigured'), type: 'category' as const },
+          ]})
+          continue
+        }
+
+        const objRes: any = await api.getPreviewObjects(info.conn_id, info.database_name)
+        const objs = objRes.data || {}
+
+        const dbNode: TreeNode = {
+          id: key,
+          label: `${label} (${info.database_name})`,
+          type: 'database',
+          children: [],
+          connId: info.conn_id,
+          dbName: info.database_name,
+        }
+
+        // Tables
+        if (objs.tables?.length) {
+          const tableChildren: TreeNode[] = objs.tables.map((t: string) => {
+            const parts = t.split('.')
+            return {
+              id: `${key}-tbl-${t}`,
+              label: t,
+              type: 'table',
+              fullName: t,
+              connId: info.conn_id,
+              dbName: info.database_name,
+              schema: parts[0],
+              objectName: parts[1],
+            }
+          })
+          dbNode.children!.push({ id: `${key}-tables`, label: `Tables (${tableChildren.length})`, type: 'category', children: tableChildren })
+        }
+
+        // Views
+        if (objs.views?.length) {
+          const viewChildren: TreeNode[] = objs.views.map((t: string) => {
+            const parts = t.split('.')
+            return {
+              id: `${key}-vw-${t}`,
+              label: t,
+              type: 'view',
+              fullName: t,
+              connId: info.conn_id,
+              dbName: info.database_name,
+              schema: parts[0],
+              objectName: parts[1],
+            }
+          })
+          dbNode.children!.push({ id: `${key}-views`, label: `Views (${viewChildren.length})`, type: 'category', children: viewChildren })
+        }
+
+        // Procedures
+        if (objs.procedures?.length) {
+          const procChildren: TreeNode[] = objs.procedures.map((t: string) => {
+            const parts = t.split('.')
+            return {
+              id: `${key}-usp-${t}`,
+              label: t,
+              type: 'procedure',
+              fullName: t,
+              connId: info.conn_id,
+              dbName: info.database_name,
+              schema: parts[0],
+              objectName: parts[1],
+            }
+          })
+          dbNode.children!.push({ id: `${key}-procs`, label: `Procedures (${procChildren.length})`, type: 'category', children: procChildren })
+        }
+
+        nodes.push(dbNode)
       }
-
-      const objRes: any = await api.getPreviewObjects(info.conn_id, info.database_name)
-      const objs = objRes.data || {}
-
-      const dbNode: TreeNode = {
-        id: key,
-        label: `${label} (${info.database_name})`,
-        type: 'database',
-        children: [],
-        connId: info.conn_id,
-        dbName: info.database_name,
-      }
-
-      // Tables
-      if (objs.tables?.length) {
-        const tableChildren: TreeNode[] = objs.tables.map((t: string) => {
-          const parts = t.split('.')
-          return {
-            id: `${key}-tbl-${t}`,
-            label: t,
-            type: 'table',
-            fullName: t,
-            connId: info.conn_id,
-            dbName: info.database_name,
-            schema: parts[0],
-            objectName: parts[1],
-          }
-        })
-        dbNode.children!.push({ id: `${key}-tables`, label: `Tables (${tableChildren.length})`, type: 'category', children: tableChildren })
-      }
-
-      // Views
-      if (objs.views?.length) {
-        const viewChildren: TreeNode[] = objs.views.map((t: string) => {
-          const parts = t.split('.')
-          return {
-            id: `${key}-vw-${t}`,
-            label: t,
-            type: 'view',
-            fullName: t,
-            connId: info.conn_id,
-            dbName: info.database_name,
-            schema: parts[0],
-            objectName: parts[1],
-          }
-        })
-        dbNode.children!.push({ id: `${key}-views`, label: `Views (${viewChildren.length})`, type: 'category', children: viewChildren })
-      }
-
-      // Procedures
-      if (objs.procedures?.length) {
-        const procChildren: TreeNode[] = objs.procedures.map((t: string) => {
-          const parts = t.split('.')
-          return {
-            id: `${key}-usp-${t}`,
-            label: t,
-            type: 'procedure',
-            fullName: t,
-            connId: info.conn_id,
-            dbName: info.database_name,
-            schema: parts[0],
-            objectName: parts[1],
-          }
-        })
-        dbNode.children!.push({ id: `${key}-procs`, label: `Procedures (${procChildren.length})`, type: 'category', children: procChildren })
-      }
-
-      nodes.push(dbNode)
     }
 
     treeData.value = nodes

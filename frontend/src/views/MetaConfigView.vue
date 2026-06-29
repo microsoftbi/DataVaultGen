@@ -9,6 +9,12 @@
       <el-table :data="objects" v-loading="objectsLoading" border stripe style="width:100%">
         <el-table-column prop="table_name" :label="$t('metaConfig.tableName')" min-width="200" />
         <el-table-column prop="schema_name" :label="$t('common.schema')" width="100" />
+        <el-table-column :label="$t('metaConfig.recordSrcColumn')" width="120" align="center">
+          <template #default="{ row }">
+            <el-tag v-if="row.record_src" size="small">{{ row.record_src }}</el-tag>
+            <span v-else style="color: var(--el-text-color-placeholder)">-</span>
+          </template>
+        </el-table-column>
         <el-table-column :label="$t('metaConfig.operation')" width="120" align="center">
           <template #default="{ row }">
             <el-button size="small" type="primary" @click="openFieldConfig(row)">{{ $t('metaConfig.fieldConfig') }}</el-button>

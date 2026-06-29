@@ -1,7 +1,7 @@
 """OLTP 源配置模型"""
 from datetime import datetime
 from sqlalchemy import Column, Integer, String, DateTime
-from app.database import Base
+from app.models.meta import Base
 
 
 class OltpSource(Base):

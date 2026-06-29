@@ -125,6 +125,19 @@ CREATE TABLE [ATTRIBUTE] (
     [DV_HUB_ID] INTEGER,                 -- 关联的 HUB 表 ID
     [DV_SAT_ID] INTEGER,                 -- 关联的 SAT 表 ID
     [DV_LINK_ID] INTEGER,                -- 关联的 LINK 表 ID
+    [RECORD_SRC] VARCHAR(64),              -- 来源标识（如 erp, crm）
+    [CREATED_AT] DATETIME
+);
+```
+
+#### OLTP_SOURCE — OLTP 源配置（多源支持）
+
+```sql
+CREATE TABLE [OLTP_SOURCE] (
+    [ID] INTEGER PRIMARY KEY AUTOINCREMENT,
+    [RECORD_SRC] VARCHAR(64) NOT NULL UNIQUE,  -- 来源别名（如 erp, crm）
+    [CONN_ID] INTEGER NOT NULL,                -- 关联 CONNECTION_CONFIG.ID
+    [DATABASE_NAME] VARCHAR(128) NOT NULL,     -- 源数据库名
     [CREATED_AT] DATETIME
 );
 ```
@@ -398,7 +411,7 @@ dwh-generator/
 │   ├── src/
 │   │   ├── api/                   # API 调用封装
 │   │   ├── components/            # 公用组件
-│   │   ├── views/                 # 11 个页面
+│   │   ├── views/                 # 12 个页面（DataPreviewView 支持 3 种模式）
 │   │   │   ├── DashboardView.vue
 │   │   │   ├── ConnectionView.vue
 │   │   │   ├── MetaImportView.vue
@@ -423,7 +436,8 @@ dwh-generator/
 │   ├── app/
 │   │   ├── config.py
 │   │   ├── database.py            # SQLite(SQLAlchemy) + SQL Server(pyodbc)
-│   │   ├── models/meta.py         # ORM 模型
+│   │   ├── models/meta.py         # ORM 模型（Attribute, DatabaseRole 等）
+│   │   ├── models/oltp_source.py # OltpSource 多 OLTP 源模型
 │   │   ├── schemas/__init__.py    # Pydantic 模型
 │   │   ├── api/
 │   │   │   ├── connections.py
@@ -433,7 +447,8 @@ dwh-generator/
 │   │   │   ├── generator.py
 │   │   │   ├── deploy.py
 │   │   │   ├── data_preview.py
-│   │   │   └── db_roles.py
+│   │   │   ├── db_roles.py
+│   │   │   └── oltp_sources.py
 │   │   ├── services/
 │   │   │   ├── generator_psa.py
 │   │   │   ├── generator_dv.py
@@ -520,16 +535,28 @@ dwh-generator/
 | POST | `/api/deploy/execute` | 执行 SQL 到指定角色库 |
 | GET | `/api/deploy/status` | 检查目标库对象状态 |
 
-### 7.7 数据预览
+### 7.7 OLTP 源管理
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| GET | `/api/preview/databases` | 获取 OLTP/STAGE/CORE 角色 |
+| GET | `/api/oltp-sources` | 获取所有 OLTP 源 |
+| POST | `/api/oltp-sources` | 新增 OLTP 源 |
+| PUT | `/api/oltp-sources/{id}` | 更新 OLTP 源 |
+| DELETE | `/api/oltp-sources/{id}` | 删除 OLTP 源 |
+
+### 7.8 数据预览
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/preview/databases` | 获取 OLTP/STAGE/CORE 库信息 |
 | GET | `/api/preview/objects` | 获取库下表/视图/存储过程 |
 | GET | `/api/preview/columns` | 获取列结构 |
 | GET | `/api/preview/data` | 获取前 500 行数据 |
+| GET | `/api/preview/meta/tables` | 获取 META 配置库表列表 |
+| GET | `/api/preview/meta/columns` | 获取 META 配置库列结构 |
+| GET | `/api/preview/meta/data` | 获取 META 配置库前 500 行数据 |
 
-### 7.8 系统
+### 7.9 系统
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
@@ -548,7 +575,8 @@ dwh-generator/
 ```
  1. 配置数据库连接
     ├─ 添加源库 / STAGE 库 / CORE 库 连接信息
-    └─ 在角色绑定页面将连接映射到 OLTP / STAGE / CORE 角色
+    ├─ 在角色绑定页面将连接映射到 STAGE / CORE 角色
+    └─ 在 OLTP 源管理中配置源数据库（record_src + 连接 + 数据库名）
 
  2. 导入元数据
     ├─ 选择 OLTP 源库 → 浏览表 → 选择要导入的表
@@ -577,9 +605,10 @@ dwh-generator/
     └─ 实时查看部署日志
 
  7. 数据预览
-    ├─ 树导航选择 OLTP/STAGE/CORE 库
-    ├─ 查看表结构和前 500 行数据
-    └─ 快速验证数据同步结果
+    ├─ **OLTP 库**：浏览所有 OLTP 源的表数据
+    ├─ **数据仓库**：STAGE / CORE 层树导航
+    ├─ **配置库**：META 数据库 SQLite 表结构 + 数据浏览
+    └─ 查看表结构和前 500 行数据
 ```
 
 ---

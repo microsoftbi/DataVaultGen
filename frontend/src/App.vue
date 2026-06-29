@@ -51,10 +51,15 @@
             <el-icon><Promotion /></el-icon>
             <template #title>{{ $t('menu.deploy') }}</template>
           </el-menu-item>
-          <el-menu-item index="/data-preview">
-            <el-icon><Search /></el-icon>
-            <template #title>{{ $t('menu.dataPreview') }}</template>
-          </el-menu-item>
+          <el-sub-menu index="/data-preview">
+            <template #title>
+              <el-icon><Search /></el-icon>
+              <span>{{ $t('menu.dataPreview') }}</span>
+            </template>
+            <el-menu-item index="/data-preview/oltp">{{ $t('menu.dataPreviewOltp') }}</el-menu-item>
+            <el-menu-item index="/data-preview/warehouse">{{ $t('menu.dataPreviewWarehouse') }}</el-menu-item>
+            <el-menu-item index="/data-preview/meta">{{ $t('menu.dataPreviewMeta') }}</el-menu-item>
+          </el-sub-menu>
           <el-menu-item index="/logs">
             <el-icon><Document /></el-icon>
             <template #title>{{ $t('menu.logs') }}</template>
@@ -222,5 +227,65 @@ function changeLocale(lang: string) {
 .app-main {
   background-color: var(--el-bg-color-page);
   min-height: calc(100vh - 60px);
+}
+
+/* ── 父节点虚线连接线（排除底部菜单） ── */
+:deep(.sidebar-menu:not(.sidebar-bottom) > .el-menu-item),
+:deep(.sidebar-menu:not(.sidebar-bottom) > .el-sub-menu > .el-sub-menu__title) {
+  position: relative;
+  padding-left: 24px !important;
+}
+:deep(.sidebar-menu:not(.sidebar-bottom) > .el-menu-item::before),
+:deep(.sidebar-menu:not(.sidebar-bottom) > .el-sub-menu > .el-sub-menu__title::before) {
+  content: '';
+  position: absolute;
+  left: 16px;
+  top: 0;
+  bottom: 0;
+  border-left: 2px dashed var(--el-border-color);
+}
+:deep(.sidebar-menu:not(.sidebar-bottom) > .el-menu-item:first-child::before) {
+  top: 18px;
+}
+:deep(.sidebar-menu:not(.sidebar-bottom) > .el-menu-item:last-child::before),
+:deep(.sidebar-menu:not(.sidebar-bottom) > .el-sub-menu:last-of-type > .el-sub-menu__title::before) {
+  bottom: 18px;
+}
+:deep(.sidebar-menu:not(.sidebar-bottom) > .el-menu-item::after),
+:deep(.sidebar-menu:not(.sidebar-bottom) > .el-sub-menu > .el-sub-menu__title::after) {
+  content: '';
+  position: absolute;
+  left: 16px;
+  top: 18px;
+  width: 8px;
+  border-top: 2px dashed var(--el-border-color);
+}
+
+/* ── 子菜单虚线连接线 ── */
+:deep(.sidebar-menu .el-sub-menu .el-menu-item) {
+  position: relative;
+  padding-left: 44px !important;
+}
+:deep(.sidebar-menu .el-sub-menu .el-menu-item::before) {
+  content: '';
+  position: absolute;
+  left: 31px;
+  top: 0;
+  bottom: 0;
+  border-left: 2px dashed var(--el-border-color);
+}
+:deep(.sidebar-menu .el-sub-menu .el-menu-item:first-child::before) {
+  top: 18px;
+}
+:deep(.sidebar-menu .el-sub-menu .el-menu-item:last-child::before) {
+  bottom: 18px;
+}
+:deep(.sidebar-menu .el-sub-menu .el-menu-item::after) {
+  content: '';
+  position: absolute;
+  left: 30px;
+  top: 18px;
+  width: 14px;
+  border-top: 2px dashed var(--el-border-color);
 }
 </style>

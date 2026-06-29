@@ -33,6 +33,9 @@ data-vault-generator/
 │   ├── app/
 │   │   ├── api/           # REST API 路由
 │   │   ├── models/        # SQLAlchemy ORM 模型（SQLite）
+│   │   │   ├── meta.py          # Attribute, DatabaseRole, DV_HUB/SAT/LINK 等
+│   │   │   ├── oltp_source.py   # OltpSource 多 OLTP 源模型
+│   │   │   └── ...
 │   │   ├── schemas/       # Pydantic 请求/响应模型
 │   │   ├── services/      # 核心业务逻辑
 │   │   └── templates/
@@ -70,15 +73,17 @@ data-vault-generator/
 
 ### 基础
 - [x] 数据库连接管理（CRUD + 测试连接 + Fernet 密码加密）
-- [x] 数据库角色绑定（OLTP 源 / STAGE 层 / CORE 层 分别映射）
-- [x] 元数据导入（SQL Server INFORMATION_SCHEMA → META）
-- [x] 字段角色配置（BK 业务键 / PK 主键 / DI 描述信息 / FK 外键）
+- [x] 数据库角色绑定（STAGE 层 / CORE 层分别映射）
+- [x] **多 OLTP 源管理**（独立 OltpSource 配置，支持多个源数据库）
+- [x] 元数据导入（SQL Server INFORMATION_SCHEMA → META，按 record_src 区分来源）
+- [x] 字段角色配置（BK 业务键 / PK 主键 / DI 描述信息 / FK 外键 + record_src 标记）
 - [x] 对象列表管理（生成开关 + 全量/增量标记）
 - [x] 多语言支持（中文 + 英文）
 - [x] 暗色主题（Claude Code 风格）
 
 ### PSA Type 2
 - [x] PSA 全套 SQL 生成（STG → CDC → LOG → Views → USPs → 全流程）
+- [x] 支持按 record_src 筛选源 + 表名前缀
 - [x] 变更数据捕获（双源比对：V_LOG_CURRENT + V_MTA UNION ALL，LAG/LEAD HF 检测 I/U/D）
 - [x] 渐进式加载类型（FULL / CDC 模式自动识别）
 - [x] 每个 Tab 页的 Execute 按钮（直接部署到 STAGE 库）
@@ -86,6 +91,7 @@ data-vault-generator/
 
 ### Data Vault 2.0
 - [x] DV 自动配置（BK → HUB, DI → SAT, FK/PK → LINK 自动创建并绑定字段）
+- [x] 支持按 record_src 筛选源 + 表名前缀
 - [x] HUB 表 + USP_HUB 生成
 - [x] SAT 表 + USP_SAT 生成（含 HD 变更指纹 + LAG 三重检测）
 - [x] LINK 表 + USP_LINK 生成（含各 FK 独立 HK）
@@ -95,6 +101,7 @@ data-vault-generator/
 - [x] SQL 执行部署（GO 分割 + 事务 + 日志记录）
 - [x] 运行时组件部署（EXECUTION_LOG 表 + USP_WRITELOG 存储过程）
 - [x] 部署目标自动解析（PSA → STAGE 角色, DV → CORE 角色）
-- [x] 数据预览（OLTP / STAGE / CORE 三层树导航 + 列结构 + 前 500 行）
+- [x] **数据预览（三层模式：OLTP 库 / 数据仓库 / 配置库）**
+- [x] **配置库预览**（META 数据库 SQLite 表结构 + 数据浏览）
 - [x] 执行日志查看与清空
 - [x] 自定义 SQL 执行

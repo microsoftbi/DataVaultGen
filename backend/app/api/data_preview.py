@@ -1,7 +1,7 @@
 """数据预览 API — 浏览 OLTP/STAGE/CORE 三个库的对象和数据"""
 from fastapi import APIRouter, HTTPException
 from sqlalchemy import text
-from app.database import get_meta_session, build_engine
+from app.database import get_meta_session, get_meta_engine, build_engine
 from app.models.meta import DatabaseRole, ConnectionConfig
 from app.models.oltp_source import OltpSource
 from app.config import settings
@@ -187,6 +187,60 @@ def get_data(conn_id: int, database_name: str, schema: str, object: str, limit: 
                     row[i] = val.isoformat()
 
     engine.dispose()
+    return {"success": True, "columns": col_names, "rows": data_rows, "total": len(data_rows)}
+
+
+# ── META 库预览 ──────────────────────────────────────────────
+_EXCLUDED_META_TABLES = {"sqlite_sequence", "sqlite_master"}
+
+
+@router.get("/meta/tables")
+def get_meta_tables():
+    """获取 META 库 (SQLite) 的所有用户表"""
+    engine = get_meta_engine()
+    with engine.connect() as conn:
+        rows = conn.execute(text(
+            "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
+        )).fetchall()
+    tables = [r[0] for r in rows if r[0] not in _EXCLUDED_META_TABLES]
+    return {"success": True, "tables": tables}
+
+
+@router.get("/meta/columns")
+def get_meta_columns(table: str):
+    """获取 META 库指定表的列结构"""
+    engine = get_meta_engine()
+    with engine.connect() as conn:
+        rows = conn.execute(text(f"PRAGMA table_info(\"{table}\")")).fetchall()
+    columns = []
+    for r in rows:
+        columns.append({
+            "column_name": r[1],
+            "data_type": r[2],
+            "is_nullable": "YES" if r[3] else "NO",
+            "display_type": r[2] or "",
+        })
+    return {"success": True, "columns": columns}
+
+
+@router.get("/meta/data")
+def get_meta_data(table: str, limit: int = 500):
+    """获取 META 库指定表的前 N 行数据"""
+    engine = get_meta_engine()
+    with engine.connect() as conn:
+        rows = conn.execute(text(
+            f"SELECT * FROM \"{table}\" LIMIT :limit"
+        ), {"limit": limit}).fetchall()
+        col_names = list(rows[0]._fields) if rows else []
+        data_rows = []
+        for r in rows:
+            row = []
+            for val in list(r):
+                if hasattr(val, 'isoformat'):
+                    row.append(val.isoformat())
+                else:
+                    row.append(val)
+            data_rows.append(row)
     return {"success": True, "columns": col_names, "rows": data_rows, "total": len(data_rows)}
 
 

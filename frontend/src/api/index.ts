@@ -252,6 +252,24 @@ export function getPreviewData(connId: number, databaseName: string, schema: str
   })
 }
 
+// ── META 库预览 ──────────────────────────────────────────────
+
+export function getMetaPreviewTables() {
+  return http.get<{ success: boolean; tables: string[] }>('/preview/meta/tables')
+}
+
+export function getMetaPreviewColumns(table: string) {
+  return http.get<{ success: boolean; columns: any[] }>('/preview/meta/columns', {
+    params: { table },
+  })
+}
+
+export function getMetaPreviewData(table: string, limit = 500) {
+  return http.get<{ success: boolean; columns: string[]; rows: any[][]; total: number }>('/preview/meta/data', {
+    params: { table, limit },
+  })
+}
+
 // ── 日志 ──────────────────────────────────────────────────────
 
 export function listLogs(limit = 100, offset = 0) {

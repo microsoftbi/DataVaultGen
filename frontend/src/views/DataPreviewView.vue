@@ -4,7 +4,7 @@
       <!-- 左侧树 -->
       <div class="tree-panel">
         <div class="tree-header">
-          <strong>{{ $t('menu.dataPreview') }}</strong>
+          <strong>{{ mode === 'meta' ? $t('menu.dataPreviewMeta') : mode === 'oltp' ? $t('menu.dataPreviewOltp') : $t('menu.dataPreview') }}</strong>
         </div>
         <el-tree
           ref="treeRef"
@@ -113,13 +113,31 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { FolderOpened, Folder, Grid, View, Monitor } from '@element-plus/icons-vue'
 import * as api from '@/api'
 
 const { t } = useI18n()
+const route = useRoute()
+const mode = ref<'warehouse' | 'meta' | 'oltp'>(
+  (route.path.endsWith('/meta') ? 'meta' : route.path.endsWith('/oltp') ? 'oltp' : 'warehouse') as 'warehouse' | 'meta' | 'oltp'
+)
+
+// 切换子路由时重新加载（同一组件，不会重新 mounted）
+watch(() => route.path, (newPath) => {
+  const newMode: 'warehouse' | 'meta' | 'oltp' = newPath.endsWith('/meta') ? 'meta' : newPath.endsWith('/oltp') ? 'oltp' : 'warehouse'
+  if (newMode !== mode.value) {
+    mode.value = newMode
+    selectedObject.value = null
+    structureData.value = []
+    dataColumns.value = []
+    dataRows.value = []
+    loadTree()
+  }
+})
 
 // ── 树 ──────────────────────────────────────────────────────────
 const treeRef = ref<any>(null)
@@ -152,7 +170,7 @@ const structureData = ref<any[]>([])
 // ── 数据 ────────────────────────────────────────────────────────
 const dataLoading = ref(false)
 const dataColumns = ref<string[]>([])
-const dataRows = ref<any[][]>([])
+const dataRows = ref<Record<string, any>[]>([])
 const dataTotal = ref(0)
 
 // ── 初始化 ──────────────────────────────────────────────────────
@@ -160,6 +178,60 @@ onMounted(() => loadTree())
 
 async function loadTree() {
   try {
+    if (mode.value === 'meta') {
+      // META mode: show all tables flat
+      const res = await api.getMetaPreviewTables()
+      const tables: string[] = res.data.tables || []
+      treeData.value = tables.map(t => ({
+        id: `meta-${t}`,
+        label: t,
+        type: 'table' as const,
+        fullName: t,
+        objectName: t,
+      }))
+      defaultExpandedKeys.value = []
+      return
+    }
+
+    if (mode.value === 'oltp') {
+      // OLTP 库模式：显示所有 OLTP 源，只列出表
+      const dbRes = await api.getPreviewDatabases()
+      const dbData = (dbRes.data as any).data
+      if (!dbData || !Array.isArray(dbData.oltp)) { treeData.value = []; return }
+
+      const nodes: TreeNode[] = []
+      for (const src of dbData.oltp) {
+        const label = `${src.record_src} (${src.connection_name || '?'} / ${src.database_name})`
+        const srcNode: TreeNode = { id: `oltp-src-${src.record_src}`, label, type: 'database', children: [] }
+        try {
+          const objRes: any = await api.getPreviewObjects(src.conn_id, src.database_name)
+          const tables: string[] = (objRes.data || {}).tables || []
+          const tableChildren: TreeNode[] = tables.map((t: string) => {
+            const parts = t.split('.')
+            const object = parts[1] || t
+            return {
+              id: `oltp-tbl-${src.record_src}-${t}`,
+              label: `${src.record_src}_${object}`,
+              type: 'table' as const,
+              connId: src.conn_id,
+              dbName: src.database_name,
+              schema: parts[0],
+              objectName: object,
+              fullName: `${src.record_src}_${object}`,
+            }
+          })
+          if (tableChildren.length) {
+            srcNode.children!.push({ id: `oltp-src-${src.record_src}-tables`, label: `Tables (${tableChildren.length})`, type: 'category' as const, children: tableChildren })
+          }
+        } catch { /* skip unreachable source */ }
+        nodes.push(srcNode)
+      }
+      treeData.value = nodes
+      defaultExpandedKeys.value = nodes.map(n => n.id)
+      return
+    }
+
+    // Warehouse mode: OLTP/STAGE/CORE
     // 1. 获取数据库信息
     const dbRes = await api.getPreviewDatabases()
     const dbData = (dbRes.data as any).data
@@ -338,9 +410,15 @@ async function onNodeClick(data: TreeNode) {
 async function loadStructure(node: TreeNode) {
   structureLoading.value = true
   try {
-    const res = await api.getPreviewColumns(node.connId!, node.dbName!, node.schema!, node.objectName!)
-    const data = res.data as any
-    structureData.value = data.columns || []
+    if (mode.value === 'meta') {
+      const res = await api.getMetaPreviewColumns(node.objectName!)
+      const data = res.data as any
+      structureData.value = data.columns || []
+    } else {
+      const res = await api.getPreviewColumns(node.connId!, node.dbName!, node.schema!, node.objectName!)
+      const data = res.data as any
+      structureData.value = data.columns || []
+    }
   } catch (e: any) {
     ElMessage.error(t('dataPreview.loadStructFailed'))
     structureData.value = []
@@ -354,17 +432,27 @@ async function loadData(node?: TreeNode) {
   if (!n || (n.type !== 'table' && n.type !== 'view')) return
   dataLoading.value = true
   try {
-    const res = await api.getPreviewData(n.connId!, n.dbName!, n.schema!, n.objectName!)
-    const data = res.data as any
-    const cols: string[] = data.columns || []
+    let cols: string[] = []
+    let rows: any[][] = []
+    if (mode.value === 'meta') {
+      const res = await api.getMetaPreviewData(n.objectName!)
+      const data = res.data as any
+      cols = data.columns || []
+      rows = data.rows || []
+    } else {
+      const res = await api.getPreviewData(n.connId!, n.dbName!, n.schema!, n.objectName!)
+      const data = res.data as any
+      cols = data.columns || []
+      rows = data.rows || []
+    }
     dataColumns.value = cols
     // 后端返回的 rows 是数组套数组，el-table :prop 需要对象格式
-    dataRows.value = (data.rows || []).map((row: any[]) => {
+    dataRows.value = rows.map((row: any[]) => {
       const obj: Record<string, any> = {}
       cols.forEach((col, i) => { obj[col] = row[i] })
       return obj
     })
-    dataTotal.value = data.total || 0
+    dataTotal.value = rows.length
   } catch (e: any) {
     ElMessage.error(t('dataPreview.loadDataFailed'))
     dataColumns.value = []

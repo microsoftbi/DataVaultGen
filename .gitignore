@@ -2,40 +2,28 @@
 __pycache__/
 *.py[cod]
 *.egg-info/
-dist/
-*.egg
 .venv/
 venv/
 
+# SQLite
+*.db
+
 # Node
 node_modules/
-frontend/dist/
+dist/
 
 # IDE
 .idea/
+.vscode/
 *.swp
 *.swo
-*~
+
+# Environment
+.env
+.env.local
 
 # OS
 .DS_Store
-Thumbs.db
 
-# Env
-.env
-!.env.example
-
-# Docker
-.docker/
-
-# SQLite auto-created database
-backend/data/meta.db
-backend/data/meta.db-shm
-backend/data/meta.db-wal
-
-# Vite auto-generated
-frontend/auto-imports.d.ts
-frontend/components.d.ts
-
-# Build output
-frontend/dist/
+*.db-shm
+*.db-wal

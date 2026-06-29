@@ -117,14 +117,14 @@
       </template>
 
       <el-table :data="oltpSources" v-loading="oltpLoading" border stripe size="small" style="width: 100%">
-        <el-table-column prop="record_src" :label="$t('connection.recordSrc')" width="160" />
-        <el-table-column :label="$t('connection.oltpConnColumn')" min-width="200">
+        <el-table-column prop="record_src" :label="$t('connection.recordSrc')" width="140" />
+        <el-table-column :label="$t('connection.oltpConnColumn')" min-width="140">
           <template #default="{ row }">
-            {{ row.connection_name || '-' }} (ID: {{ row.conn_id }})
+            {{ row.connection_name || '-' }}
           </template>
         </el-table-column>
-        <el-table-column prop="database_name" :label="$t('connection.dbName')" width="180" />
-        <el-table-column :label="$t('common.operation')" width="120" align="center">
+        <el-table-column prop="database_name" :label="$t('connection.dbName')" width="210" />
+        <el-table-column :label="$t('common.operation')" width="210" align="center">
           <template #default="{ row }">
             <el-button size="small" text @click="openEditOltpSource(row)">{{ $t('common.edit') }}</el-button>
             <el-button size="small" text type="danger" @click="handleDeleteOltpSource(row)">{{ $t('common.delete') }}</el-button>

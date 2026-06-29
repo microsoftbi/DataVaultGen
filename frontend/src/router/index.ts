@@ -56,8 +56,24 @@ const router = createRouter({
     },
     {
       path: '/data-preview',
-      name: 'dataPreview',
-      component: () => import('@/views/DataPreviewView.vue'),
+      redirect: '/data-preview/warehouse',
+      children: [
+        {
+          path: 'warehouse',
+          name: 'dataPreviewWarehouse',
+          component: () => import('@/views/DataPreviewView.vue'),
+        },
+        {
+          path: 'meta',
+          name: 'dataPreviewMeta',
+          component: () => import('@/views/DataPreviewView.vue'),
+        },
+        {
+          path: 'oltp',
+          name: 'dataPreviewOltp',
+          component: () => import('@/views/DataPreviewView.vue'),
+        },
+      ],
     },
     {
       path: '/logs',

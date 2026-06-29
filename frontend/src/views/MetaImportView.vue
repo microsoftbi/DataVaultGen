@@ -27,9 +27,7 @@
         <el-form label-width="120px">
           <el-form-item :label="$t('metaImport.selectOltp')">
             <el-select v-model="selectedSourceId" :placeholder="$t('metaImport.selectOltp')" style="width: 420px" @change="resetTables">
-              <el-option v-for="s in oltpSources" :key="s.id" :value="s.id">
-                <span>{{ s.record_src }} — {{ s.connection_name }} / {{ s.database_name }}</span>
-              </el-option>
+              <el-option v-for="s in oltpSources" :key="s.id" :value="s.id" :label="`${s.record_src} — ${s.connection_name} / ${s.database_name}`" />
             </el-select>
           </el-form-item>
         </el-form>

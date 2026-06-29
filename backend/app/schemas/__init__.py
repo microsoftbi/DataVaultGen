@@ -108,6 +108,7 @@ class AttributeResponse(BaseModel):
     is_pk: bool
     is_di: bool
     is_fk: bool
+    record_src: Optional[str] = None
     dv_column_name: Optional[str]
     dv_sat_id: Optional[int]
     dv_hub_id: Optional[int]
@@ -201,6 +202,32 @@ class ConfigResponse(BaseModel):
     core_db_name: str
 
 
+# ── OLTP 源管理 ─────────────────────────────────────────────
+
+class OltpSourceCreate(BaseModel):
+    record_src: str = Field(..., max_length=64)
+    conn_id: int = Field(...)
+    database_name: str = Field(..., max_length=128)
+
+
+class OltpSourceUpdate(BaseModel):
+    record_src: Optional[str] = Field(None, max_length=64)
+    conn_id: Optional[int] = None
+    database_name: Optional[str] = Field(None, max_length=128)
+
+
+class OltpSourceResponse(BaseModel):
+    id: int
+    record_src: str
+    conn_id: int
+    database_name: str
+    connection_name: Optional[str] = None
+    created_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
 # ── 数据库角色绑定 ────────────────────────────────────────────
 
 class DatabaseRoleUpdate(BaseModel):
@@ -210,8 +237,7 @@ class DatabaseRoleUpdate(BaseModel):
 
 
 class DatabaseRolesRequest(BaseModel):
-    """三个角色的绑定配置"""
-    oltp: DatabaseRoleUpdate
+    """两个角色的绑定配置（OLTP 已移至 OLTP_SOURCE 表）"""
     stage: DatabaseRoleUpdate
     core: DatabaseRoleUpdate
 

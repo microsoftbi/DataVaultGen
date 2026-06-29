@@ -1,4 +1,4 @@
-"""数据库角色绑定 API：配置 OLTP / STAGE / CORE 分别使用哪个连接的哪个数据库"""
+"""数据库角色绑定 API：配置 STAGE / CORE 分别使用哪个连接的哪个数据库（OLTP 已移至 OLTP_SOURCE 表）"""
 from fastapi import APIRouter, HTTPException
 from app.database import get_meta_session
 from app.models.meta import DatabaseRole
@@ -19,14 +19,13 @@ def _role_to_dict(role: DatabaseRole) -> dict:
 
 @router.get("/db-roles")
 def get_db_roles():
-    """获取三个角色的绑定配置"""
+    """获取两个角色的绑定配置"""
     session = get_meta_session()
     roles = session.query(DatabaseRole).all()
     result = {}
     for r in roles:
         result[r.role_name.lower()] = _role_to_dict(r)
-    # 确保三个角色都有返回
-    for name in ("oltp", "stage", "core"):
+    for name in ("stage", "core"):
         if name not in result:
             result[name] = None
     return {"success": True, "data": result}
@@ -34,11 +33,11 @@ def get_db_roles():
 
 @router.put("/db-roles")
 def update_db_roles(data: DatabaseRolesRequest):
-    """保存三个角色的绑定配置"""
+    """保存两个角色的绑定配置"""
     session = get_meta_session()
-    mappings = {"oltp": "OLTP", "stage": "STAGE", "core": "CORE"}
+    mappings = {"stage": "STAGE", "core": "CORE"}
 
-    for key, role_cfg in [("oltp", data.oltp), ("stage", data.stage), ("core", data.core)]:
+    for key, role_cfg in [("stage", data.stage), ("core", data.core)]:
         role_name = mappings[key]
         existing = session.query(DatabaseRole).filter(DatabaseRole.role_name == role_name).first()
         if existing:

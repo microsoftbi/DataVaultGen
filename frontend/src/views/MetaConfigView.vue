@@ -7,20 +7,8 @@
       </div>
 
       <el-table :data="objects" v-loading="objectsLoading" border stripe style="width:100%">
-        <el-table-column prop="table_name" :label="$t('metaConfig.tableName')" min-width="160" />
+        <el-table-column prop="table_name" :label="$t('metaConfig.tableName')" min-width="200" />
         <el-table-column prop="schema_name" :label="$t('common.schema')" width="100" />
-        <el-table-column :label="$t('metaConfig.isGen')" width="100" align="center">
-          <template #default="{ row }">
-            <el-switch v-model="row.is_gen"
-              @change="(v:any) => handleObjectSwitch(row, 'is_gen', v as boolean)" />
-          </template>
-        </el-table-column>
-        <el-table-column :label="$t('metaConfig.isFullLoad')" width="100" align="center">
-          <template #default="{ row }">
-            <el-switch v-model="row.is_full_load"
-              @change="(v:any) => handleObjectSwitch(row, 'is_full_load', v as boolean)" />
-          </template>
-        </el-table-column>
         <el-table-column :label="$t('metaConfig.operation')" width="120" align="center">
           <template #default="{ row }">
             <el-button size="small" type="primary" @click="openFieldConfig(row)">{{ $t('metaConfig.fieldConfig') }}</el-button>
@@ -98,15 +86,6 @@ async function loadObjects() {
   } catch (e: any) {
     ElMessage.error(e?.response?.data?.message || e?.message || t('metaConfig.loadObjectsFailed'))
   } finally { objectsLoading.value = false }
-}
-
-async function handleObjectSwitch(row: ObjectItem, field: 'is_gen' | 'is_full_load', val: boolean) {
-  try {
-    await api.updateObject(row.id, { [field]: val })
-  } catch (e: any) {
-    row[field] = !val
-    ElMessage.error(e?.response?.data?.message || e?.message || t('metaConfig.updateFailed'))
-  }
 }
 
 // ── 字段配置对话框 ───────────────────────────────────────────────

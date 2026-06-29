@@ -1,15 +1,15 @@
-"""DWH-Generator 后端配置"""
+"""Data Vault Generator 后端配置"""
 from pathlib import Path
 from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    app_name: str = "DWH-Generator"
+    app_name: str = "Data Vault Generator"
     app_version: str = "1.0.0"
     debug: bool = True
 
     # 密码加密密钥（生产环境应从环境变量读取）
-    secret_key: str = "dwh-generator-secret-key-change-in-production"
+    secret_key: str = "data-vault-generator-secret-key-change-in-production"
 
     # META 库（SQLite，本地文件，自动创建）
     # 路径相对于 config.py 所在目录 (backend/app/)，定位到 backend/data/

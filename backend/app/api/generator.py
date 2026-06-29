@@ -135,3 +135,9 @@ def generate_dv_usp_link():
 def generate_dv_all():
     gen = _get_dv()
     return {"success": True, "sql": gen.generate_combined()}
+
+
+@router.post("/dv/flow")
+def generate_dv_flow():
+    gen = _get_dv()
+    return {"success": True, "sql": gen.generate_execute_flow()}

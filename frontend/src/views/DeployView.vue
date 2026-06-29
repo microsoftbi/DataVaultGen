@@ -104,6 +104,7 @@
             size="large"
             :loading="deployPsaLoading"
             @click="handleDeployPsa"
+            class="deploy-btn"
           >
             {{ $t('deploy.deployPsa') }}
           </el-button>
@@ -119,6 +120,7 @@
             size="large"
             :loading="deployDvLoading"
             @click="handleDeployDv"
+            class="deploy-btn"
           >
             {{ $t('deploy.deployDv') }}
           </el-button>
@@ -178,6 +180,9 @@
           <el-icon :size="20"><Document /></el-icon>
           <span>{{ $t('deploy.deployLog') }}</span>
           <el-tag size="small" type="info" class="log-count">{{ $t('deploy.recentNLogs', { n: logs.length }) }}</el-tag>
+          <el-button size="small" style="margin-left: auto;" @click="handleClearLogs">
+            {{ $t('logs.clear') }}
+          </el-button>
         </div>
       </template>
 
@@ -224,21 +229,49 @@
           prop="message"
           :label="$t('deploy.messageColumn')"
           min-width="300"
-          show-overflow-tooltip
         >
           <template #default="{ row }">
-            <span class="log-message">{{ row.message || '-' }}</span>
+            <span class="log-message clickable" @click="showLogDetail(row)">
+              {{ truncateText(row.message, 100) }}
+            </span>
           </template>
         </el-table-column>
       </el-table>
     </el-card>
+
+    <!-- 日志详情对话框 -->
+    <el-dialog
+      v-model="logDetailVisible"
+      :title="$t('logs.detailTitle')"
+      width="700px"
+      :close-on-click-modal="false"
+    >
+      <div class="log-detail-content">
+        <div class="log-detail-meta">
+          <span><strong>{{ $t('logs.time') }}:</strong> {{ selectedLog?.created_at ? new Date(selectedLog.created_at).toLocaleString() : '-' }}</span>
+          <span><strong>{{ $t('logs.source') }}:</strong> {{ selectedLog?.log_source || '-' }}</span>
+          <span><strong>{{ $t('logs.logType') }}:</strong>
+            <el-tag
+              :type="logTypeTag(selectedLog?.log_type || '')"
+              size="small"
+              effect="dark"
+            >{{ selectedLog?.log_type }}</el-tag>
+          </span>
+        </div>
+        <el-divider />
+        <pre class="log-detail-message">{{ selectedLog?.message || '-' }}</pre>
+      </div>
+      <template #footer>
+        <el-button @click="logDetailVisible = false">{{ $t('common.close') }}</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { Connection, Document, Upload } from '@element-plus/icons-vue'
 import {
   listConnections,
@@ -248,6 +281,7 @@ import {
   deployRuntime,
   deploySql,
   listLogs,
+  clearLogs,
   getDeployDiff,
 } from '@/api'
 import type { Connection as ConnectionType, LogEntry } from '@/types'
@@ -330,6 +364,14 @@ async function handleTestConnection() {
 const deployPsaLoading = ref(false)
 
 async function handleDeployPsa() {
+  try {
+    await ElMessageBox.confirm(t('deploy.deployPsaConfirmMsg'), t('deploy.deployPsa'), {
+      confirmButtonText: t('deploy.deployPsa'),
+      cancelButtonText: t('common.cancel'),
+      type: 'warning',
+      confirmButtonClass: 'el-button--primary',
+    })
+  } catch { return }
   deployPsaLoading.value = true
   try {
     const res = await deployPsa()
@@ -353,6 +395,14 @@ async function handleDeployPsa() {
 const deployDvLoading = ref(false)
 
 async function handleDeployDv() {
+  try {
+    await ElMessageBox.confirm(t('deploy.deployDvConfirmMsg'), t('deploy.deployDv'), {
+      confirmButtonText: t('deploy.deployDv'),
+      cancelButtonText: t('common.cancel'),
+      type: 'warning',
+      confirmButtonClass: 'el-button--success',
+    })
+  } catch { return }
   deployDvLoading.value = true
   try {
     const res = await deployDv()
@@ -425,6 +475,18 @@ async function handleDeploySql() {
 
 const logs = ref<LogEntry[]>([])
 const logLoading = ref(false)
+const logDetailVisible = ref(false)
+const selectedLog = ref<LogEntry | null>(null)
+
+function truncateText(text: string | null | undefined, maxLen: number): string {
+  if (!text) return '-'
+  return text.length > maxLen ? text.slice(0, maxLen) + '...' : text
+}
+
+function showLogDetail(row: LogEntry) {
+  selectedLog.value = row
+  logDetailVisible.value = true
+}
 
 async function refreshLogs() {
   logLoading.value = true
@@ -448,6 +510,23 @@ function logTypeTag(type: string): string {
       return 'warning'
     default:
       return 'info'
+  }
+}
+
+async function handleClearLogs() {
+  try {
+    await ElMessageBox.confirm(t('logs.clearConfirm'), t('logs.confirmClearTitle'), {
+      confirmButtonText: t('logs.clearBtn'),
+      cancelButtonText: t('common.cancel'),
+      type: 'warning',
+    })
+  } catch { return }
+  try {
+    await clearLogs()
+    ElMessage.success(t('logs.cleared'))
+    await refreshLogs()
+  } catch (e: any) {
+    ElMessage.error(e?.response?.data?.message || e.message)
   }
 }
 
@@ -585,6 +664,10 @@ onMounted(async () => {
   line-height: 1.5;
 }
 
+.deploy-btn {
+  width: 180px;
+}
+
 /* ── SQL 编辑 ── */
 
 .sql-editor {
@@ -604,5 +687,39 @@ onMounted(async () => {
 .log-message {
   white-space: pre-wrap;
   word-break: break-all;
+}
+
+.log-message.clickable {
+  cursor: pointer;
+  color: var(--el-color-primary);
+}
+
+.log-message.clickable:hover {
+  text-decoration: underline;
+}
+
+.log-detail-content {
+  padding: 0 4px;
+}
+
+.log-detail-meta {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  font-size: 14px;
+}
+
+.log-detail-message {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-all;
+  font-family: 'SF Mono', 'Fira Code', 'Courier New', monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  background: var(--el-fill-color);
+  padding: 12px;
+  border-radius: 6px;
+  max-height: 400px;
+  overflow-y: auto;
 }
 </style>

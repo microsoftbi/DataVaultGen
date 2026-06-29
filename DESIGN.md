@@ -1,4 +1,4 @@
-# DWH-Generator 重构设计方案
+# Data Vault Generator 重构设计方案
 
 ## 基于 Vue3 + FastAPI + SQL Server（PSA Type 2 + Data Vault 2.0）
 
@@ -8,7 +8,7 @@
 
 ### 1.1 原始项目功能
 
-[DWH-Generator](https://github.com/microsoftbi/DWH-Generator) 是一个**数据仓库元数据驱动的自动代码生成工具**，遵循 **PSA（持久化临时区）+ Data Vault 2.0** 方法论。它通过读取源表的列元数据，自动生成全套 DWH 建表脚本、视图和存储过程。
+本系统基于 [DWH-Generator](https://github.com/microsoftbi/DWH-Generator) 重构，是一个**数据仓库元数据驱动的自动代码生成工具**，遵循 **PSA（持久化临时区）+ Data Vault 2.0** 方法论。它通过读取源表的列元数据，自动生成全套 DWH 建表脚本、视图和存储过程。
 
 > 原始技术栈：C# WinForms (.NET 4.5.2) + SQL Server + Handlebars.NET
 

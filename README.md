@@ -1,4 +1,4 @@
-# DWH-Generator
+# Data Vault Generator
 
 基于 Vue3 + FastAPI + SQLite/SQL Server 的 **PSA Type 2 + Data Vault 2.0** 数据仓库代码生成器。
 
@@ -28,7 +28,7 @@ npm run dev                        # http://localhost:5173
 ## 项目目录
 
 ```
-dwh-generator/
+data-vault-generator/
 ├── backend/
 │   ├── app/
 │   │   ├── api/           # REST API 路由

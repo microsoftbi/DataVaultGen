@@ -25,18 +25,22 @@ BEGIN
             [CDC_OPERATION_CODE],
             [REC_SRC],
             [HK],
-            {% for f in link.fk_fields %}
+            {% for f in link.bk_fields %}
             [{{ f.field_name }}],
-            [{{ f.field_name }}_HK]{% if not loop.last %},{% endif %}
+            {% endfor %}
+            {% for f in link.fk_fields %}
+            [{{ f.field_name }}]{% if not loop.last %},{% endif %}
             {% endfor %}
         )
         SELECT PSA.[LOAD_DTS],
                PSA.[CDC_OPERATION_CODE],
                PSA.[REC_SRC],
                PSA.[HK],
-               {% for f in link.fk_fields %}
+               {% for f in link.bk_fields %}
                PSA.[{{ f.field_name }}],
-               PSA.[{{ f.field_name }}_HK]{% if not loop.last %},{% endif %}
+               {% endfor %}
+               {% for f in link.fk_fields %}
+               PSA.[{{ f.field_name }}]{% if not loop.last %},{% endif %}
                {% endfor %}
         FROM
         (

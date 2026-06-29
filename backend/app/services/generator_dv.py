@@ -199,3 +199,11 @@ class DVGenerator:
     def generate_combined(self) -> str:
         parts = self.generate_all()
         return "\n\n".join(parts.values())
+
+    def generate_execute_flow(self) -> str:
+        return self.template.render("dv/execute_flow.sql.j2", {
+            "core_db_name": self.core_db_name,
+            "dv_hubs": self._load_hubs(),
+            "dv_sats": self._load_sats(),
+            "dv_links": self._load_links(),
+        })

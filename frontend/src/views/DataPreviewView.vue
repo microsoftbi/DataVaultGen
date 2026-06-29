@@ -12,6 +12,7 @@
           :props="treeProps"
           node-key="id"
           highlight-current
+          :default-expanded-keys="defaultExpandedKeys"
           :expand-on-click-node="true"
           :filter-node-method="filterNode"
           @node-click="onNodeClick"
@@ -123,6 +124,7 @@ const { t } = useI18n()
 // ── 树 ──────────────────────────────────────────────────────────
 const treeRef = ref<any>(null)
 const treeData = ref<any[]>([])
+const defaultExpandedKeys = ref<string[]>([])
 const treeProps = {
   children: 'children',
   label: 'label',
@@ -244,6 +246,7 @@ async function loadTree() {
     }
 
     treeData.value = nodes
+    defaultExpandedKeys.value = nodes.map(n => n.id)
   } catch (e: any) {
     ElMessage.error(t('dataPreview.loadFailed'))
   }
@@ -291,8 +294,14 @@ async function loadData(node?: TreeNode) {
   try {
     const res = await api.getPreviewData(n.connId!, n.dbName!, n.schema!, n.objectName!)
     const data = res.data as any
-    dataColumns.value = data.columns || []
-    dataRows.value = data.rows || []
+    const cols: string[] = data.columns || []
+    dataColumns.value = cols
+    // 后端返回的 rows 是数组套数组，el-table :prop 需要对象格式
+    dataRows.value = (data.rows || []).map((row: any[]) => {
+      const obj: Record<string, any> = {}
+      cols.forEach((col, i) => { obj[col] = row[i] })
+      return obj
+    })
     dataTotal.value = data.total || 0
   } catch (e: any) {
     ElMessage.error(t('dataPreview.loadDataFailed'))

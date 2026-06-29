@@ -1,4 +1,4 @@
-/* DWH-Generator 前端类型定义 */
+/* Data Vault Generator 前端类型定义 */
 
 // 连接管理
 export interface Connection {

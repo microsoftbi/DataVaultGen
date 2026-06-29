@@ -1,0 +1,18 @@
+USE [{{ core_db_name }}]
+GO
+
+{% for hub in dv_hubs %}
+EXEC [{{ core_db_name }}].[dbo].[USP_{{ hub.table_name }}]
+GO
+
+{% endfor %}
+{% for sat in dv_sats %}
+EXEC [{{ core_db_name }}].[dbo].[USP_{{ sat.table_name }}]
+GO
+
+{% endfor %}
+{% for link in dv_links %}
+EXEC [{{ core_db_name }}].[dbo].[USP_{{ link.table_name }}]
+GO
+
+{% endfor %}

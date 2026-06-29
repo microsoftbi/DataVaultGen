@@ -3,7 +3,7 @@
     <el-container style="min-height: 100vh">
       <el-aside :width="collapsed ? '64px' : '220px'" class="app-sidebar">
         <div class="sidebar-header">
-          <div v-if="!collapsed" class="logo-text">DWH Generator</div>
+          <div v-if="!collapsed" class="logo-text">Data Vault Generator</div>
           <div v-else class="logo-mini">DG</div>
           <el-button
             :icon="collapsed ? Expand : Fold"
@@ -177,6 +177,14 @@ function changeLocale(lang: string) {
 }
 .sidebar-menu {
   border-right: none;
+}
+.sidebar-menu .el-menu-item {
+  height: 36px;
+  line-height: 36px;
+}
+.sidebar-menu .el-sub-menu .el-sub-menu__title {
+  height: 36px;
+  line-height: 36px;
 }
 .sidebar-spacer {
   flex: 1;

@@ -1,4 +1,4 @@
-"""DWH-Generator 后端入口 — python main.py"""
+"""Data Vault Generator 后端入口 — python main.py"""
 import sys
 from pathlib import Path
 

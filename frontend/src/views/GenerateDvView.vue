@@ -34,6 +34,7 @@
         <el-tab-pane :label="$t('generate.dvTabs.uspSat')" name="dv_usp_sat" />
         <el-tab-pane :label="$t('generate.dvTabs.uspLink')" name="dv_usp_link" />
         <el-tab-pane :label="$t('generate.dvTabs.all')" name="dv_all" />
+        <el-tab-pane :label="$t('generate.dvTabs.flow')" name="dv_flow" />
       </el-tabs>
 
       <div v-if="!sqlResult && !generating" class="placeholder-text">
@@ -55,6 +56,7 @@ import 'highlight.js/styles/github-dark.css'
 import {
   generateDvHub, generateDvSat, generateDvLink,
   generateDvUspHub, generateDvUspSat, generateDvUspLink, generateDvAll,
+  generateDvFlow,
   executeSql,
 } from '@/api'
 
@@ -75,6 +77,7 @@ const apiMap: Record<string, () => Promise<any>> = {
   dv_hub: generateDvHub, dv_sat: generateDvSat, dv_link: generateDvLink,
   dv_usp_hub: generateDvUspHub, dv_usp_sat: generateDvUspSat,
   dv_usp_link: generateDvUspLink, dv_all: generateDvAll,
+  dv_flow: generateDvFlow,
 }
 
 watch(sqlResult, async () => {

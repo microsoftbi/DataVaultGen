@@ -207,6 +207,7 @@ export function generateDvUspHub() { return http.post('/generate/dv/usp-hub') }
 export function generateDvUspSat() { return http.post('/generate/dv/usp-sat') }
 export function generateDvUspLink() { return http.post('/generate/dv/usp-link') }
 export function generateDvAll() { return http.post('/generate/dv/all') }
+export function generateDvFlow() { return http.post('/generate/dv/flow') }
 
 export function getDeployDiff(connId: number) {
   return http.get('/deploy/diff', { params: { conn_id: connId } })

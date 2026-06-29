@@ -1,7 +1,7 @@
 [project]
-name = "dwh-generator-backend"
+name = "data-vault-generator-backend"
 version = "1.0.0"
-description = "DWH-Generator Backend"
+description = "Data Vault Generator Backend"
 requires-python = ">=3.11"
 dependencies = []
 

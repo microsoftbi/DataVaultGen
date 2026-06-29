@@ -20,6 +20,7 @@ _MIGRATIONS: dict[str, list[tuple[str, str]]] = {
         ("DV_SAT_ID", "INTEGER"),
         ("DV_HUB_ID", "INTEGER"),
         ("DV_LINK_ID", "INTEGER"),
+        ("RECORD_SRC", "VARCHAR(64)"),
     ],
     "EXECUTION_LOG": [],
     "CONNECTION_CONFIG": [],
@@ -76,6 +77,7 @@ class Attribute(Base):
     dv_sat_id = Column("DV_SAT_ID", Integer, default=None)
     dv_hub_id = Column("DV_HUB_ID", Integer, default=None)
     dv_link_id = Column("DV_LINK_ID", Integer, default=None)
+    record_src = Column("RECORD_SRC", String(64), nullable=True)
     created_at = Column("CREATED_AT", DateTime, default=datetime.now)
 
 

@@ -148,6 +148,9 @@ class ObjectListItem(BaseModel):
 
 
 class ObjectListUpdate(BaseModel):
+    table_name: Optional[str] = None
+    schema_name: Optional[str] = None
+    record_src: Optional[str] = None
     is_gen: Optional[bool] = None
     is_full_load: Optional[bool] = None
 

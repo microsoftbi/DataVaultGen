@@ -29,6 +29,7 @@
       <div style="margin-bottom: 16px; display: flex; align-items: center; gap: 12px;">
         <span style="font-weight: 500; font-size: 14px;">{{ $t('generate.selectOltpSource') }}:</span>
         <el-select v-model="selectedRecordSrc" :placeholder="$t('generate.selectOltpSourcePh')" style="width: 300px" @change="onSourceChange">
+          <el-option label="全部 (All)" value="" />
           <el-option v-for="src in oltpSources" :key="src.record_src" :label="`${src.record_src} — ${src.connection_name} / ${src.database_name}`" :value="src.record_src" />
         </el-select>
       </div>
@@ -92,7 +93,7 @@ async function loadOltpSources() {
     const res = await listOltpSources()
     oltpSources.value = res.data
     if (oltpSources.value.length > 0) {
-      selectedRecordSrc.value = oltpSources.value[0].record_src
+      selectedRecordSrc.value = ''
     }
   } catch { /* ignore */ }
 }
@@ -107,10 +108,7 @@ watch(sqlResult, async () => {
 })
 
 async function onTabChange(tabName: string | number) {
-  if (!selectedRecordSrc.value) {
-    ElMessage.warning(t('generate.selectOltpSourcePh'))
-    return
-  }
+
   const apiFn = apiMap[tabName as string]
   if (!apiFn) return
   generating.value = true

@@ -96,6 +96,7 @@
 
       <el-table :data="confirmSummary" border stripe size="small" style="width: 100%">
         <el-table-column prop="tableName" :label="$t('metaImport.importTableHeader')" min-width="180" />
+        <el-table-column prop="tableSchema" :label="$t('common.schema')" width="100" />
         <el-table-column prop="selectedCount" :label="$t('metaImport.importedCols')" width="100">
           <template #default="{ row }"><el-tag type="success">{{ row.selectedCount }}</el-tag></template>
         </el-table-column>
@@ -213,6 +214,7 @@ const confirmSummary = computed(() =>
     const nonTech = keys.filter(k => !isTechnical(k))
     return {
       tableName: c.tableName,
+      tableSchema: c.tableSchema,
       selectedCount: nonTech.length,
       skippedCount: c.totalCount - nonTech.length,
       columns: nonTech,

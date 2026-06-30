@@ -71,6 +71,7 @@ export interface ObjectItem {
   schema_name: string
   is_gen: boolean
   is_full_load: boolean
+  record_src?: string
 }
 
 // 生成

@@ -21,6 +21,7 @@ _MIGRATIONS: dict[str, list[tuple[str, str]]] = {
         ("DV_HUB_ID", "INTEGER"),
         ("DV_LINK_ID", "INTEGER"),
         ("RECORD_SRC", "VARCHAR(64)"),
+        ("TABLE_SCHEMA", "VARCHAR(128) DEFAULT 'dbo'"),
     ],
     "EXECUTION_LOG": [],
     "CONNECTION_CONFIG": [],
@@ -78,6 +79,7 @@ class Attribute(Base):
     dv_hub_id = Column("DV_HUB_ID", Integer, default=None)
     dv_link_id = Column("DV_LINK_ID", Integer, default=None)
     record_src = Column("RECORD_SRC", String(64), nullable=True)
+    table_schema = Column("TABLE_SCHEMA", String(128), default="dbo")
     created_at = Column("CREATED_AT", DateTime, default=datetime.now)
 
 

@@ -99,15 +99,25 @@
             <strong>{{ $t('deploy.psaActionTitle') }}</strong>
             <p>{{ $t('deploy.psaActionDesc') }}</p>
           </div>
-          <el-button
-            type="primary"
-            size="large"
-            :loading="deployPsaLoading"
-            @click="handleDeployPsa"
-            class="deploy-btn"
-          >
-            {{ $t('deploy.deployPsa') }}
-          </el-button>
+          <div class="action-btns">
+            <el-button
+              type="primary"
+              size="large"
+              :loading="deployPsaLoading"
+              @click="handleDeployPsa"
+              class="deploy-btn"
+            >
+              {{ $t('deploy.deployPsa') }}
+            </el-button>
+            <el-button
+              size="large"
+              :loading="execPsaLoading"
+              @click="handleExecPsa"
+              class="deploy-btn"
+            >
+              {{ $t('deploy.execPsa') }}
+            </el-button>
+          </div>
         </div>
 
         <div class="action-item">
@@ -167,6 +177,36 @@
           :loading="deploySqlLoading"
           :disabled="!customSql.trim()"
           @click="handleDeploySql"
+        >
+          {{ $t('deploy.executeDeploy') }}
+        </el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 执行 PSA 对话框 -->
+    <el-dialog
+      v-model="execPsaDialogVisible"
+      :title="$t('deploy.execPsa')"
+      width="780px"
+      :close-on-click-modal="false"
+    >
+      <p style="margin-bottom: 8px; font-size: 13px; color: var(--el-text-color-secondary);">
+        {{ $t('deploy.execPsaDesc') }}
+      </p>
+      <el-input
+        v-model="execPsaSql"
+        type="textarea"
+        :rows="15"
+        readonly
+        class="sql-editor"
+      />
+      <template #footer>
+        <el-button @click="execPsaDialogVisible = false">{{ $t('common.cancel') }}</el-button>
+        <el-button
+          type="primary"
+          :loading="execPsaExecLoading"
+          :disabled="!execPsaSql.trim()"
+          @click="handleExecPsaConfirm"
         >
           {{ $t('deploy.executeDeploy') }}
         </el-button>
@@ -283,6 +323,7 @@ import {
   listLogs,
   clearLogs,
   getDeployDiff,
+  generatePsaFlow,
 } from '@/api'
 import type { Connection as ConnectionType, LogEntry } from '@/types'
 
@@ -387,6 +428,58 @@ async function handleDeployPsa() {
     ElMessage.error(e?.response?.data?.message || t('deploy.deployPsaFailed'))
   } finally {
     deployPsaLoading.value = false
+  }
+}
+
+// ── 执行 PSA（预览流 SQL 后手动确认） ──
+
+const execPsaLoading = ref(false)
+const execPsaDialogVisible = ref(false)
+const execPsaSql = ref('')
+const execPsaExecLoading = ref(false)
+
+async function handleExecPsa() {
+  if (!selectedConnId.value) {
+    ElMessage.warning(t('deploy.selectTargetPh'))
+    return
+  }
+  execPsaLoading.value = true
+  execPsaSql.value = ''
+  try {
+    const res = await generatePsaFlow()
+    const sql = (res.data as any)?.sql || ''
+    if (!sql) {
+      ElMessage.warning(t('generate.generateEmpty'))
+      return
+    }
+    execPsaSql.value = sql
+    execPsaDialogVisible.value = true
+  } catch (e: any) {
+    ElMessage.error(t('generate.generateFailed') + ': ' + (e?.response?.data?.message || e.message))
+  } finally {
+    execPsaLoading.value = false
+  }
+}
+
+async function handleExecPsaConfirm() {
+  if (!selectedConnId.value || !execPsaSql.value.trim()) return
+  execPsaExecLoading.value = true
+  try {
+    const res = await deploySql(selectedConnId.value, execPsaSql.value)
+    const result = res.data
+    if (result.success) {
+      ElMessage.success(t('deploy.deploySuccessMsg', { n: result.executed_count }))
+    } else {
+      const extra = result.error_at > 0 ? t('deploy.errorAt', { n: result.error_at }) : ''
+      ElMessage.warning(result.message || t('deploy.deployCompleteMsg', { extra }))
+    }
+    execPsaDialogVisible.value = false
+    execPsaSql.value = ''
+    await refreshLogs()
+  } catch (e: any) {
+    ElMessage.error(e?.response?.data?.message || t('deploy.deployFailed'))
+  } finally {
+    execPsaExecLoading.value = false
   }
 }
 
@@ -666,6 +759,10 @@ onMounted(async () => {
 
 .deploy-btn {
   width: 180px;
+}
+.action-btns {
+  display: flex;
+  gap: 8px;
 }
 
 /* ── SQL 编辑 ── */

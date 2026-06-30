@@ -2,13 +2,14 @@ USE [{{ psa_db_name }}]
 GO
 
 {% for table in tables %}
-IF EXISTS (SELECT * FROM sys.tables WHERE name = '{{ table.object_name }}_STG' AND schema_id = SCHEMA_ID('{{ table.schema_name }}'))
-    DROP TABLE [{{ table.schema_name }}].[{{ table.object_name }}_STG]
+{% set pfx = table.record_src ~ '_' if table.record_src else '' %}{% set obj_name = pfx ~ table.table_name %}
+IF EXISTS (SELECT * FROM sys.tables WHERE name = '{{ obj_name }}_STG' AND schema_id = SCHEMA_ID('{{ table.schema_name }}'))
+    DROP TABLE [{{ table.schema_name }}].[{{ obj_name }}_STG]
 GO
-CREATE TABLE [{{ table.schema_name }}].[{{ table.object_name }}_STG](
+CREATE TABLE [{{ table.schema_name }}].[{{ obj_name }}_STG](
     [LOAD_DTS] DATETIME NOT NULL DEFAULT GETDATE(),
-    [REC_SRC] NVARCHAR(15) NOT NULL DEFAULT '{{ table.record_source }}',
-    [REC_PATH] NVARCHAR(256) NULL DEFAULT '{{ table.schema_name }}.{{ table.object_name }}',
+    [REC_SRC] NVARCHAR(15) NOT NULL DEFAULT '{{ table.record_src }}',
+    [REC_PATH] NVARCHAR(256) NULL DEFAULT '{{ table.schema_name }}.{{ obj_name }}',
     [TRANSFER_DTS] DATETIME NULL DEFAULT GETDATE(),
     [HK] CHAR(32) NULL,
     [INSERT_TIME] DATETIME NULL,

@@ -109,7 +109,7 @@ export function initObjectList() {
   return http.post('/objects/init')
 }
 
-export function updateObject(id: number, data: { is_gen?: boolean; is_full_load?: boolean }) {
+export function updateObject(id: number, data: { table_name?: string; schema_name?: string; record_src?: string; is_gen?: boolean; is_full_load?: boolean }) {
   return http.put<ObjectItem>(`/objects/${id}`, data)
 }
 

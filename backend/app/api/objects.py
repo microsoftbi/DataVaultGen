@@ -11,23 +11,24 @@ router = APIRouter(prefix="/api/objects", tags=["对象列表"])
 @router.get("")
 def list_objects():
     session = get_meta_session()
-    # 关联 Attribute 获取 record_src
+    # 关联 Attribute 获取 record_src + table_schema
     sub = session.query(
         Attribute.table_name,
         Attribute.record_src,
+        Attribute.table_schema,
     ).distinct().subquery()
 
-    rows = session.query(GenList, sub.c.record_src).outerjoin(
+    rows = session.query(GenList, sub.c.record_src, sub.c.table_schema).outerjoin(
         sub, GenList.table_name == sub.c.table_name
     ).order_by(GenList.table_name).all()
 
     result = []
-    for gen, record_src in rows:
+    for gen, record_src, table_schema in rows:
         result.append({
             "id": gen.id,
             "table_catalog": gen.table_catalog,
             "table_name": gen.table_name,
-            "schema_name": gen.schema_name,
+            "schema_name": table_schema or gen.schema_name,
             "is_gen": gen.is_gen,
             "is_full_load": gen.is_full_load,
             "record_src": record_src,
@@ -74,6 +75,25 @@ def update_object(obj_id: int, data: ObjectListUpdate):
     if not row:
         raise HTTPException(404, "Object not found")
     update_data = data.model_dump(exclude_unset=True)
+
+    # 同步更新 ATTRIBUTE 表
+    attr_updates = {}
+    # record_src 只存在于 ATTRIBUTE，不在 GenList
+    record_src = update_data.pop("record_src", None)
+    if record_src is not None:
+        attr_updates["record_src"] = record_src
+    # schema_name 同时存在于 GenList 和 ATTRIBUTE（存为 table_schema）
+    if "schema_name" in update_data:
+        attr_updates["table_schema"] = update_data["schema_name"]
+    # table_name 更新时同步 ATTRIBUTE
+    if "table_name" in update_data and update_data["table_name"] != row.table_name:
+        attr_updates["table_name"] = update_data["table_name"]
+
+    if attr_updates:
+        session.query(Attribute).filter(
+            Attribute.table_name == row.table_name
+        ).update(attr_updates, synchronize_session=False)
+
     for k, v in update_data.items():
         setattr(row, k, v)
     session.commit()

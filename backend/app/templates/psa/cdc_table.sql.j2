@@ -2,10 +2,11 @@ USE [{{ psa_db_name }}]
 GO
 
 {% for table in tables %}
-IF EXISTS (SELECT * FROM sys.tables WHERE name = '{{ table.object_name }}_CDC' AND schema_id = SCHEMA_ID('{{ table.schema_name }}'))
-    DROP TABLE [{{ table.schema_name }}].[{{ table.object_name }}_CDC]
+{% set pfx = table.record_src ~ '_' if table.record_src else '' %}{% set obj_name = pfx ~ table.table_name %}
+IF EXISTS (SELECT * FROM sys.tables WHERE name = '{{ obj_name }}_CDC' AND schema_id = SCHEMA_ID('{{ table.schema_name }}'))
+    DROP TABLE [{{ table.schema_name }}].[{{ obj_name }}_CDC]
 GO
-CREATE TABLE [{{ table.schema_name }}].[{{ table.object_name }}_CDC](
+CREATE TABLE [{{ table.schema_name }}].[{{ obj_name }}_CDC](
     [LOAD_DTS] [DATETIMEOFFSET](7) NOT NULL,
     [SEQUENCE_NO] [BIGINT] NOT NULL,
     [CDC_OPERATION_CODE] [CHAR](1) NOT NULL,

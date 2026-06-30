@@ -177,6 +177,7 @@ def import_table_meta(
             table_catalog=None,
             table_name=table_name,
             column_name=col_name,
+            table_schema=table_schema,
             data_type=col["data_type"],
             character_maximum_length=col["character_maximum_length"],
             numeric_precision=col["numeric_precision"],

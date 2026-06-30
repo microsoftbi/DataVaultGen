@@ -2,9 +2,10 @@ USE [{{ psa_db_name }}]
 GO
 
 {% for table in tables %}
-EXEC [{{ psa_db_name }}].[{{ table.schema_name }}].[USP_{{ table.object_name }}_STG]
-EXEC [{{ psa_db_name }}].[{{ table.schema_name }}].[USP_{{ table.object_name }}_CDC]
-EXEC [{{ psa_db_name }}].[{{ table.schema_name }}].[USP_{{ table.object_name }}_LOG]
+{% set pfx = table.record_src ~ '_' if table.record_src else '' %}{% set obj_name = pfx ~ table.table_name %}
+EXEC [{{ psa_db_name }}].[{{ table.schema_name }}].[USP_{{ obj_name }}_STG]
+EXEC [{{ psa_db_name }}].[{{ table.schema_name }}].[USP_{{ obj_name }}_CDC]
+EXEC [{{ psa_db_name }}].[{{ table.schema_name }}].[USP_{{ obj_name }}_LOG]
 GO
 
 {% endfor %}

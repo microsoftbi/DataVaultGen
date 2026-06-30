@@ -2,23 +2,24 @@ USE [{{ psa_db_name }}]
 GO
 
 {% for table in tables %}
+{% set pfx = table.record_src ~ '_' if table.record_src else '' %}{% set obj_name = pfx ~ table.table_name %}
 {% set pk_first = table.pk_fields[0] if table.pk_fields else {'field_name': 'ID'} %}
-IF EXISTS (SELECT * FROM sys.procedures WHERE name = 'USP_{{ table.object_name }}_CDC' AND schema_id = SCHEMA_ID('{{ table.schema_name }}'))
-    DROP PROCEDURE [{{ table.schema_name }}].[USP_{{ table.object_name }}_CDC]
+IF EXISTS (SELECT * FROM sys.procedures WHERE name = 'USP_{{ obj_name }}_CDC' AND schema_id = SCHEMA_ID('{{ table.schema_name }}'))
+    DROP PROCEDURE [{{ table.schema_name }}].[USP_{{ obj_name }}_CDC]
 GO
-CREATE PROCEDURE [{{ table.schema_name }}].[USP_{{ table.object_name }}_CDC]
+CREATE PROCEDURE [{{ table.schema_name }}].[USP_{{ obj_name }}_CDC]
 AS
 BEGIN
     DECLARE @LOGSOURCE AS NVARCHAR(100)
-    SET @LOGSOURCE = N'{{ psa_db_name }}.{{ table.schema_name }}.USP_{{ table.object_name }}_CDC'
+    SET @LOGSOURCE = N'{{ psa_db_name }}.{{ table.schema_name }}.USP_{{ obj_name }}_CDC'
 
-    EXEC META.dbo.USP_WRITELOG N'Start to load {{ table.object_name }}_CDC', @LOGSOURCE, N'N'
+    EXEC META.dbo.USP_WRITELOG N'Start to load {{ obj_name }}_CDC', @LOGSOURCE, N'N'
 
-    TRUNCATE TABLE [{{ table.schema_name }}].[{{ table.object_name }}_CDC]
+    TRUNCATE TABLE [{{ table.schema_name }}].[{{ obj_name }}_CDC]
 
     BEGIN TRY
         BEGIN TRAN
-            INSERT INTO [{{ table.schema_name }}].[{{ table.object_name }}_CDC]
+            INSERT INTO [{{ table.schema_name }}].[{{ obj_name }}_CDC]
             (
                 [LOAD_DTS],
                 [SEQUENCE_NO],
@@ -132,14 +133,14 @@ BEGIN
                         {% endfor %}
                         'HDA' AS SOURCE_ENTITY,
                         1 AS RNK
-                    FROM [{{ table.schema_name }}].[V_{{ table.object_name }}_LOG_CURRENT]
+                    FROM [{{ table.schema_name }}].[V_{{ obj_name }}_LOG_CURRENT]
                     UNION ALL
                     SELECT
                         COALESCE([LOAD_DTS], GETDATE()) AS LOAD_DTS,
                         1 AS SEQUENCE_NO,
                         '' AS CDC_OPERATION_CODE,
                         [REC_SRC],
-                        '{{ table.schema_name }}.{{ table.object_name }}' AS REC_PATH,
+                        '{{ table.schema_name }}.{{ obj_name }}' AS REC_PATH,
                         GETDATE() AS TRANSFER_DTS,
                         'FULL' AS LOAD_TYPE,
                         [HK],
@@ -159,7 +160,7 @@ BEGIN
                         {% endfor %}
                         'CDC' AS SOURCE_ENTITY,
                         2 AS RNK
-                    FROM [{{ table.schema_name }}].[V_{{ table.object_name }}_MTA]
+                    FROM [{{ table.schema_name }}].[V_{{ obj_name }}_MTA]
                 ) MtaInner
             ) Mta
             CROSS JOIN
@@ -167,7 +168,7 @@ BEGIN
                 SELECT
                     MAX(LOAD_DTS) AS MAX_LOAD_DTS,
                     MAX(LOAD_TYPE) AS LOAD_TYPE
-                FROM [{{ table.schema_name }}].[V_{{ table.object_name }}_MTA]
+                FROM [{{ table.schema_name }}].[V_{{ obj_name }}_MTA]
             ) AS MAX_LTS
             WHERE CASE
                 WHEN Mta.LEAD_HF IS NULL
@@ -183,12 +184,12 @@ BEGIN
 
         COMMIT TRAN
 
-        EXEC META.dbo.USP_WRITELOG N'Finish to load {{ table.object_name }}_CDC', @LOGSOURCE, N'N'
+        EXEC META.dbo.USP_WRITELOG N'Finish to load {{ obj_name }}_CDC', @LOGSOURCE, N'N'
     END TRY
     BEGIN CATCH
         ROLLBACK TRAN
         DECLARE @ERROR_MESSAGE AS NVARCHAR(4000)
-        SET @ERROR_MESSAGE = N'Failed to load {{ table.object_name }}_CDC' + ISNULL(ERROR_MESSAGE(), '')
+        SET @ERROR_MESSAGE = N'Failed to load {{ obj_name }}_CDC' + ISNULL(ERROR_MESSAGE(), '')
         EXEC META.dbo.USP_WRITELOG @ERROR_MESSAGE, @LOGSOURCE, N'E'
     END CATCH
 END

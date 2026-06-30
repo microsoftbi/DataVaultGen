@@ -30,11 +30,10 @@ class PSAGenerator:
         for row in rows:
             key = row.table_name
             if key not in table_map:
-                prefix = f"{self.record_src}_" if self.record_src else ""
                 table_map[key] = {
-                    "object_name": f"{prefix}{row.table_name}",
-                    "schema_name": "dbo",
-                    "record_source": self.record_src or "dbo",
+                    "table_name": row.table_name,
+                    "schema_name": row.table_schema or "dbo",
+                    "record_src": row.record_src or "",
                     "pk_fields": [],
                     "bk_fields": [],
                     "fk_fields": [],

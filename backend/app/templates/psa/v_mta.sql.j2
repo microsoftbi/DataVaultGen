@@ -2,10 +2,11 @@ USE [{{ psa_db_name }}]
 GO
 
 {% for table in tables %}
-IF EXISTS (SELECT * FROM sys.views WHERE name = 'V_{{ table.object_name }}_MTA' AND schema_id = SCHEMA_ID('{{ table.schema_name }}'))
-    DROP VIEW [{{ table.schema_name }}].[V_{{ table.object_name }}_MTA]
+{% set pfx = table.record_src ~ '_' if table.record_src else '' %}{% set obj_name = pfx ~ table.table_name %}
+IF EXISTS (SELECT * FROM sys.views WHERE name = 'V_{{ obj_name }}_MTA' AND schema_id = SCHEMA_ID('{{ table.schema_name }}'))
+    DROP VIEW [{{ table.schema_name }}].[V_{{ obj_name }}_MTA]
 GO
-CREATE VIEW [{{ table.schema_name }}].[V_{{ table.object_name }}_MTA]
+CREATE VIEW [{{ table.schema_name }}].[V_{{ obj_name }}_MTA]
 AS
 SELECT
     COALESCE([LOAD_DTS], GETDATE()) AS LOAD_DTS,
@@ -15,8 +16,8 @@ SELECT
         {% endfor %}
     ) AS [SEQUENCE_NO],
     CAST(NULL AS NCHAR(1)) AS CDC_OPERATION_CODE,
-    '{{ table.record_source }}' AS [REC_SRC],
-    '{{ table.schema_name }}.{{ table.object_name }}' AS [REC_PATH],
+    '{{ table.record_src }}' AS [REC_SRC],
+    '{{ table.schema_name }}.{{ obj_name }}' AS [REC_PATH],
     GETDATE() AS [TRANSFER_DTS],
     CAST('FULL' AS NVARCHAR(10)) AS [LOAD_TYPE],
     CONVERT(CHAR(32), HASHBYTES('MD5',
@@ -55,7 +56,7 @@ SELECT
     {% for f in table.di_fields %}
     [{{ f.field_name }}]{% if not loop.last %},{% endif %}
     {% endfor %}
-FROM [{{ table.schema_name }}].[{{ table.object_name }}_STG]
+FROM [{{ table.schema_name }}].[{{ obj_name }}_STG]
 GO
 
 {% endfor %}

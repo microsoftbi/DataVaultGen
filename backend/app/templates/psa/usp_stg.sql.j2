@@ -2,22 +2,23 @@ USE [{{ psa_db_name }}]
 GO
 
 {% for table in tables %}
-IF EXISTS (SELECT * FROM sys.procedures WHERE name = 'USP_{{ table.object_name }}_STG' AND schema_id = SCHEMA_ID('{{ table.schema_name }}'))
-    DROP PROCEDURE [{{ table.schema_name }}].[USP_{{ table.object_name }}_STG]
+{% set pfx = table.record_src ~ '_' if table.record_src else '' %}{% set obj_name = pfx ~ table.table_name %}
+IF EXISTS (SELECT * FROM sys.procedures WHERE name = 'USP_{{ obj_name }}_STG' AND schema_id = SCHEMA_ID('{{ table.schema_name }}'))
+    DROP PROCEDURE [{{ table.schema_name }}].[USP_{{ obj_name }}_STG]
 GO
-CREATE PROCEDURE [{{ table.schema_name }}].[USP_{{ table.object_name }}_STG]
+CREATE PROCEDURE [{{ table.schema_name }}].[USP_{{ obj_name }}_STG]
 AS
 BEGIN
     DECLARE @LOGSOURCE AS NVARCHAR(100)
-    SET @LOGSOURCE = N'{{ psa_db_name }}.{{ table.schema_name }}.USP_{{ table.object_name }}_STG'
+    SET @LOGSOURCE = N'{{ psa_db_name }}.{{ table.schema_name }}.USP_{{ obj_name }}_STG'
 
-    EXEC META.dbo.USP_WRITELOG N'Start to load {{ table.object_name }}_STG', @LOGSOURCE, N'N'
+    EXEC META.dbo.USP_WRITELOG N'Start to load {{ obj_name }}_STG', @LOGSOURCE, N'N'
 
     BEGIN TRY
         BEGIN TRAN
-            TRUNCATE TABLE [{{ table.schema_name }}].[{{ table.object_name }}_STG]
+            TRUNCATE TABLE [{{ table.schema_name }}].[{{ obj_name }}_STG]
 
-            INSERT INTO [{{ table.schema_name }}].[{{ table.object_name }}_STG]
+            INSERT INTO [{{ table.schema_name }}].[{{ obj_name }}_STG]
             (
                 {% for f in table.pk_fields %}
                 [{{ f.field_name }}],
@@ -55,16 +56,16 @@ BEGIN
                     {% endfor %}
                 ), 2) AS HK,
                 GETDATE() AS INSERT_TIME
-            FROM [{{ oltp_db_name }}].[{{ table.schema_name }}].[{{ table.object_name }}]
+            FROM [{{ oltp_db_name }}].[{{ table.schema_name }}].[{{ table.table_name }}]
 
         COMMIT TRAN
 
-        EXEC META.dbo.USP_WRITELOG N'Finish to load {{ table.object_name }}_STG', @LOGSOURCE, N'N'
+        EXEC META.dbo.USP_WRITELOG N'Finish to load {{ obj_name }}_STG', @LOGSOURCE, N'N'
     END TRY
     BEGIN CATCH
         ROLLBACK TRAN
         DECLARE @ERROR_MESSAGE AS NVARCHAR(4000)
-        SET @ERROR_MESSAGE = N'Failed to load {{ table.object_name }}_STG' + ISNULL(ERROR_MESSAGE(), '')
+        SET @ERROR_MESSAGE = N'Failed to load {{ obj_name }}_STG' + ISNULL(ERROR_MESSAGE(), '')
         EXEC META.dbo.USP_WRITELOG @ERROR_MESSAGE, @LOGSOURCE, N'E'
     END CATCH
 END

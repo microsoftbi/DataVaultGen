@@ -7,21 +7,41 @@
       </div>
 
       <el-table :data="objects" v-loading="objectsLoading" border stripe style="width:100%">
-        <el-table-column prop="table_name" :label="$t('metaConfig.tableName')" min-width="200" />
-        <el-table-column prop="schema_name" :label="$t('common.schema')" width="100" />
-        <el-table-column :label="$t('metaConfig.recordSrcColumn')" width="120" align="center">
+        <el-table-column prop="table_name" label="Table Name" />
+        <el-table-column prop="schema_name" label="Schema" />
+        <el-table-column label="Record Source" align="center">
           <template #default="{ row }">
             <el-tag v-if="row.record_src" size="small">{{ row.record_src }}</el-tag>
             <span v-else style="color: var(--el-text-color-placeholder)">-</span>
           </template>
         </el-table-column>
-        <el-table-column :label="$t('metaConfig.operation')" width="120" align="center">
+        <el-table-column label="Action" align="center">
           <template #default="{ row }">
             <el-button size="small" type="primary" @click="openFieldConfig(row)">{{ $t('metaConfig.fieldConfig') }}</el-button>
+            <el-button size="small" @click="openEditObject(row)">{{ $t('common.edit') }}</el-button>
           </template>
         </el-table-column>
       </el-table>
     </div>
+
+    <!-- 对象编辑对话框 -->
+    <el-dialog v-model="editObjDialogVisible" :title="$t('metaConfig.editObjectTitle')" width="420px" :close-on-click-modal="false">
+      <el-form ref="editObjFormRef" :model="editObjForm" :rules="editObjRules" label-width="100px">
+        <el-form-item label="Table Name" prop="table_name">
+          <el-input v-model="editObjForm.table_name" />
+        </el-form-item>
+        <el-form-item label="Schema" prop="schema_name">
+          <el-input v-model="editObjForm.schema_name" />
+        </el-form-item>
+        <el-form-item label="Record Source" prop="record_src">
+          <el-input v-model="editObjForm.record_src" :placeholder="$t('metaConfig.recordSrcPlaceholder')" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="editObjDialogVisible = false">{{ $t('common.cancel') }}</el-button>
+        <el-button type="primary" :loading="savingObject" @click="handleSaveObject">{{ $t('common.save') }}</el-button>
+      </template>
+    </el-dialog>
 
     <!-- 字段配置对话框 -->
     <el-dialog v-model="dialogVisible" :title="t('metaConfig.fieldConfigTitle', { table: dialogTableName })"
@@ -70,7 +90,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, reactive, onMounted, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { FullScreen } from '@element-plus/icons-vue'
@@ -179,6 +199,48 @@ async function handleSave() {
     takeSnapshot()
   } catch (e: any) { ElMessage.error(e?.response?.data?.message || e?.message || t('metaConfig.saveFailed')) }
   finally { saving.value = false }
+}
+
+// ── 对象编辑对话框 ────────────────────────────────────────────
+
+const editObjDialogVisible = ref(false)
+const savingObject = ref(false)
+const editObjFormRef = ref<any>(null)
+const editObjForm = reactive({
+  id: 0,
+  table_name: '',
+  schema_name: '',
+  record_src: '',
+})
+const editObjRules = {
+  table_name: [{ required: true, message: t('metaConfig.tableNameRequired'), trigger: 'blur' }],
+}
+
+function openEditObject(row: ObjectItem) {
+  editObjForm.id = row.id
+  editObjForm.table_name = row.table_name
+  editObjForm.schema_name = row.schema_name
+  editObjForm.record_src = (row as any).record_src || ''
+  editObjDialogVisible.value = true
+  nextTick(() => editObjFormRef.value?.clearValidate())
+}
+
+async function handleSaveObject() {
+  const valid = await editObjFormRef.value?.validate().catch(() => false)
+  if (!valid) return
+  savingObject.value = true
+  try {
+    await api.updateObject(editObjForm.id, {
+      table_name: editObjForm.table_name,
+      schema_name: editObjForm.schema_name,
+      record_src: editObjForm.record_src,
+    })
+    ElMessage.success(t('common.success'))
+    editObjDialogVisible.value = false
+    await loadObjects()
+  } catch (e: any) {
+    ElMessage.error(e?.response?.data?.message || e?.message || t('metaConfig.saveFailed'))
+  } finally { savingObject.value = false }
 }
 
 // ── 生命周期 ─────────────────────────────────────────────────────

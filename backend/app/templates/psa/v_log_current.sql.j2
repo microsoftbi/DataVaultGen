@@ -2,10 +2,11 @@ USE [{{ psa_db_name }}]
 GO
 
 {% for table in tables %}
-IF EXISTS (SELECT * FROM sys.views WHERE name = 'V_{{ table.object_name }}_LOG_CURRENT' AND schema_id = SCHEMA_ID('{{ table.schema_name }}'))
-    DROP VIEW [{{ table.schema_name }}].[V_{{ table.object_name }}_LOG_CURRENT]
+{% set pfx = table.record_src ~ '_' if table.record_src else '' %}{% set obj_name = pfx ~ table.table_name %}
+IF EXISTS (SELECT * FROM sys.views WHERE name = 'V_{{ obj_name }}_LOG_CURRENT' AND schema_id = SCHEMA_ID('{{ table.schema_name }}'))
+    DROP VIEW [{{ table.schema_name }}].[V_{{ obj_name }}_LOG_CURRENT]
 GO
-CREATE VIEW [{{ table.schema_name }}].[V_{{ table.object_name }}_LOG_CURRENT]
+CREATE VIEW [{{ table.schema_name }}].[V_{{ obj_name }}_LOG_CURRENT]
 AS
 SELECT
     LogTable.[LOAD_DTS],
@@ -30,12 +31,12 @@ SELECT
     {% for f in table.di_fields %}
     LogTable.[{{ f.field_name }}]{% if not loop.last %},{% endif %}
     {% endfor %}
-FROM [{{ table.schema_name }}].[{{ table.object_name }}_LOG] LogTable
+FROM [{{ table.schema_name }}].[{{ obj_name }}_LOG] LogTable
 INNER JOIN
 (
     SELECT HK,
         MAX(LOAD_DTS) AS MAX_LOAD_DTS
-    FROM [{{ table.schema_name }}].[{{ table.object_name }}_LOG] WITH (NOLOCK)
+    FROM [{{ table.schema_name }}].[{{ obj_name }}_LOG] WITH (NOLOCK)
     GROUP BY HK
 ) HDA_MAX
     ON LogTable.HK = HDA_MAX.HK

@@ -53,7 +53,7 @@
         ref="rolesFormRef"
         :model="rolesForm"
         label-width="180px"
-        style="max-width: 700px"
+        style="max-width: 880px"
       >
         <el-form-item
           :label="$t('connection.stageLabel')"
@@ -75,8 +75,16 @@
           <el-input
             v-model="rolesForm.stage.database_name"
             :placeholder="$t('connection.inputDbNamePh')"
-            style="width: 200px"
+            style="width: 200px; margin-right: 12px"
           />
+          <el-button
+            size="small"
+            type="danger"
+            :loading="creatingDb === 'stage'"
+            @click="handleCreateDatabase('stage')"
+          >
+            {{ $t('connection.createDb') }}
+          </el-button>
         </el-form-item>
 
         <el-form-item
@@ -99,8 +107,16 @@
           <el-input
             v-model="rolesForm.core.database_name"
             :placeholder="$t('connection.inputDbNamePh')"
-            style="width: 200px"
+            style="width: 200px; margin-right: 12px"
           />
+          <el-button
+            size="small"
+            type="danger"
+            :loading="creatingDb === 'core'"
+            @click="handleCreateDatabase('core')"
+          >
+            {{ $t('connection.createDb') }}
+          </el-button>
         </el-form-item>
       </el-form>
     </el-card>
@@ -224,6 +240,31 @@
         input-style="font-family: monospace; font-size: 12px; color: var(--el-color-danger)"
       />
     </el-dialog>
+
+    <!-- 重建数据库 对话框 -->
+    <el-dialog
+      v-model="createDbDialogVisible"
+      :title="t('connection.createDb')"
+      width="620px"
+      :close-on-click-modal="false"
+      top="30vh"
+    >
+      <div style="margin-bottom: 12px; color: var(--el-color-danger); font-size: 14px; font-weight: 500;">
+        ⚠ {{ t('connection.createDbConfirm', { dbName: createDbDbName }) }}
+      </div>
+      <el-input
+        v-model="createDbSql"
+        type="textarea"
+        :rows="4"
+        style="font-family: 'SF Mono', 'Fira Code', 'Courier New', monospace; font-size: 13px;"
+      />
+      <template #footer>
+        <el-button @click="createDbDialogVisible = false">{{ $t('common.cancel') }}</el-button>
+        <el-button type="danger" :loading="creatingDb !== null" @click="handleCreateDatabaseConfirm">
+          {{ $t('common.confirm') }}
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -342,6 +383,45 @@ async function handleSave() {
     ElMessage.error(e?.response?.data?.message || e?.message || t('connection.operationFailed'))
   } finally {
     saving.value = false
+  }
+}
+
+// ── 重建数据库 ──────────────────────────────────────────────────────
+
+const createDbDialogVisible = ref(false)
+const createDbSql = ref('')
+const createDbDbName = ref('')
+const createDbRoleName = ref('')
+const creatingDb = ref<string | null>(null)
+
+function handleCreateDatabase(roleName: string) {
+  const dbName = roleName === 'stage' ? rolesForm.stage.database_name : rolesForm.core.database_name
+  if (!dbName) {
+    ElMessage.warning(t('connection.inputDbNamePh'))
+    return
+  }
+  createDbRoleName.value = roleName
+  createDbDbName.value = dbName
+  createDbSql.value = `DROP DATABASE IF EXISTS [${dbName}]\nCREATE DATABASE [${dbName}]`
+  createDbDialogVisible.value = true
+}
+
+async function handleCreateDatabaseConfirm() {
+  const roleName = createDbRoleName.value
+  creatingDb.value = roleName
+  try {
+    const res = await api.createDatabase(roleName)
+    const data = res.data as any
+    if (data.success) {
+      ElMessage.success(data.message || t('common.success'))
+      createDbDialogVisible.value = false
+    } else {
+      ElMessage.error(data.message || t('connection.operationFailed'))
+    }
+  } catch (e: any) {
+    ElMessage.error(e?.response?.data?.message || e?.message || t('connection.operationFailed'))
+  } finally {
+    creatingDb.value = null
   }
 }
 

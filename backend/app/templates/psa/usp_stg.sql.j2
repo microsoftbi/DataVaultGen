@@ -3,22 +3,22 @@ GO
 
 {% for table in tables %}
 {% set pfx = table.record_src ~ '_' if table.record_src else '' %}{% set obj_name = pfx ~ table.table_name %}
-IF EXISTS (SELECT * FROM sys.procedures WHERE name = 'USP_{{ obj_name }}_STG' AND schema_id = SCHEMA_ID('{{ table.schema_name }}'))
-    DROP PROCEDURE [{{ table.schema_name }}].[USP_{{ obj_name }}_STG]
+IF EXISTS (SELECT * FROM sys.procedures WHERE name = 'USP_{{ obj_name }}_STG' AND schema_id = SCHEMA_ID('DBO'))
+    DROP PROCEDURE [DBO].[USP_{{ obj_name }}_STG]
 GO
-CREATE PROCEDURE [{{ table.schema_name }}].[USP_{{ obj_name }}_STG]
+CREATE PROCEDURE [DBO].[USP_{{ obj_name }}_STG]
 AS
 BEGIN
     DECLARE @LOGSOURCE AS NVARCHAR(100)
-    SET @LOGSOURCE = N'{{ psa_db_name }}.{{ table.schema_name }}.USP_{{ obj_name }}_STG'
+    SET @LOGSOURCE = N'{{ psa_db_name }}.DBO.USP_{{ obj_name }}_STG'
 
     EXEC META.dbo.USP_WRITELOG N'Start to load {{ obj_name }}_STG', @LOGSOURCE, N'N'
 
     BEGIN TRY
         BEGIN TRAN
-            TRUNCATE TABLE [{{ table.schema_name }}].[{{ obj_name }}_STG]
+            TRUNCATE TABLE [DBO].[{{ obj_name }}_STG]
 
-            INSERT INTO [{{ table.schema_name }}].[{{ obj_name }}_STG]
+            INSERT INTO [DBO].[{{ obj_name }}_STG]
             (
                 {% for f in table.pk_fields %}
                 [{{ f.field_name }}],
@@ -56,7 +56,7 @@ BEGIN
                     {% endfor %}
                 ), 2) AS HK,
                 GETDATE() AS INSERT_TIME
-            FROM [{{ oltp_db_name }}].[{{ table.schema_name }}].[{{ table.table_name }}]
+            FROM [{{ table.database_name }}].[{{ table.schema_name }}].[{{ table.table_name }}]
 
         COMMIT TRAN
 

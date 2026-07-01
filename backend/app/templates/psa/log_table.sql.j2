@@ -3,10 +3,10 @@ GO
 
 {% for table in tables %}
 {% set pfx = table.record_src ~ '_' if table.record_src else '' %}{% set obj_name = pfx ~ table.table_name %}
-IF EXISTS (SELECT * FROM sys.tables WHERE name = '{{ obj_name }}_LOG' AND schema_id = SCHEMA_ID('{{ table.schema_name }}'))
-    DROP TABLE [{{ table.schema_name }}].[{{ obj_name }}_LOG]
+IF EXISTS (SELECT * FROM sys.tables WHERE name = '{{ obj_name }}_LOG' AND schema_id = SCHEMA_ID('DBO'))
+    DROP TABLE [DBO].[{{ obj_name }}_LOG]
 GO
-CREATE TABLE [{{ table.schema_name }}].[{{ obj_name }}_LOG](
+CREATE TABLE [DBO].[{{ obj_name }}_LOG](
     [LOAD_DTS] [DATETIMEOFFSET](7) NOT NULL,
     [SEQUENCE_NO] [BIGINT] NOT NULL,
     [CDC_OPERATION_CODE] [CHAR](1) NOT NULL,

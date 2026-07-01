@@ -3,10 +3,10 @@ GO
 
 {% for table in tables %}
 {% set pfx = table.record_src ~ '_' if table.record_src else '' %}{% set obj_name = pfx ~ table.table_name %}
-IF EXISTS (SELECT * FROM sys.views WHERE name = 'V_{{ obj_name }}_MTA' AND schema_id = SCHEMA_ID('{{ table.schema_name }}'))
-    DROP VIEW [{{ table.schema_name }}].[V_{{ obj_name }}_MTA]
+IF EXISTS (SELECT * FROM sys.views WHERE name = 'V_{{ obj_name }}_MTA' AND schema_id = SCHEMA_ID('DBO'))
+    DROP VIEW [DBO].[V_{{ obj_name }}_MTA]
 GO
-CREATE VIEW [{{ table.schema_name }}].[V_{{ obj_name }}_MTA]
+CREATE VIEW [DBO].[V_{{ obj_name }}_MTA]
 AS
 SELECT
     COALESCE([LOAD_DTS], GETDATE()) AS LOAD_DTS,
@@ -56,7 +56,7 @@ SELECT
     {% for f in table.di_fields %}
     [{{ f.field_name }}]{% if not loop.last %},{% endif %}
     {% endfor %}
-FROM [{{ table.schema_name }}].[{{ obj_name }}_STG]
+FROM [DBO].[{{ obj_name }}_STG]
 GO
 
 {% endfor %}

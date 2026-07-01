@@ -102,11 +102,8 @@ def deploy_psa(conn_id: int = None):
     # 生成全部 SQL
     psa_db = session.query(Configuration).filter(Configuration.config_name == "PSA_DB").first()
     hash_d = session.query(Configuration).filter(Configuration.config_name == "HASHDUMMY").first()
-    oltp_role = session.query(DatabaseRole).filter(DatabaseRole.role_name == "OLTP").first()
-    oltp_db = oltp_role.database_name if oltp_role else None
     gen = PSAGenerator(session, psa_db.config_value if psa_db else "STAGE",
-                       hash_d.config_value if hash_d else "@IAMHUSKIES@",
-                       oltp_db_name=oltp_db)
+                       hash_d.config_value if hash_d else "@IAMHUSKIES@")
 
     sql = gen.generate_combined()
 

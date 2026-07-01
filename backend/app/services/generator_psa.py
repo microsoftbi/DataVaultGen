@@ -1,6 +1,7 @@
 """PSA Type 2 代码生成引擎"""
 from app.services.template_engine import TemplateEngine
 from app.models.meta import Attribute
+from app.models.oltp_source import OltpSource
 from sqlalchemy.orm import Session
 
 
@@ -8,11 +9,10 @@ class PSAGenerator:
     """PSA Type 2 全套代码生成器"""
 
     def __init__(self, session: Session, psa_db_name: str, hash_dummy: str = "@IAMHUSKIES@",
-                 oltp_db_name: str = None, record_src: str = None):
+                 record_src: str = None):
         self.session = session
         self.psa_db_name = psa_db_name
         self.hash_dummy = hash_dummy
-        self.oltp_db_name = oltp_db_name
         self.record_src = record_src
         self.template = TemplateEngine()
 
@@ -26,14 +26,20 @@ class PSAGenerator:
             query = query.filter(Attribute.record_src == self.record_src)
         rows = query.all()
 
+        # 查询 OltpSource 获取 record_src → database_name 映射
+        oltp_sources = self.session.query(OltpSource).all()
+        src_to_db = {s.record_src: s.database_name for s in oltp_sources}
+
         table_map: dict[str, dict] = {}
         for row in rows:
             key = row.table_name
             if key not in table_map:
+                rs = row.record_src or ""
                 table_map[key] = {
                     "table_name": row.table_name,
                     "schema_name": row.table_schema or "dbo",
-                    "record_src": row.record_src or "",
+                    "record_src": rs,
+                    "database_name": src_to_db.get(rs, self.psa_db_name),
                     "pk_fields": [],
                     "bk_fields": [],
                     "fk_fields": [],
@@ -107,7 +113,6 @@ class PSAGenerator:
             "psa_db_name": self.psa_db_name,
             "tables": tables,
             "hash_dummy": self.hash_dummy,
-            "oltp_db_name": self.oltp_db_name or self.psa_db_name,
         })
 
     def generate_usp_cdc(self) -> str:

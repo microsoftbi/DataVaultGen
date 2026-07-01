@@ -39,7 +39,9 @@
         <el-tab-pane :label="$t('generate.psaTabs.cdc')" name="cdc" />
         <el-tab-pane :label="$t('generate.psaTabs.log')" name="log" />
         <el-tab-pane :label="$t('generate.psaTabs.views')" name="views" />
-        <el-tab-pane :label="$t('generate.psaTabs.usps')" name="usps" />
+        <el-tab-pane :label="$t('generate.psaTabs.uspStg')" name="usp-stg" />
+        <el-tab-pane :label="$t('generate.psaTabs.uspCdc')" name="usp-cdc" />
+        <el-tab-pane :label="$t('generate.psaTabs.uspLog')" name="usp-log" />
         <el-tab-pane :label="$t('generate.psaTabs.all')" name="all" />
         <el-tab-pane :label="$t('generate.psaTabs.flow')" name="flow" />
       </el-tabs>
@@ -62,7 +64,8 @@ import hljs from 'highlight.js'
 import 'highlight.js/styles/github-dark.css'
 import {
   generatePsaStg, generatePsaCdc, generatePsaLog,
-  generatePsaViews, generatePsaUsps, generatePsaAll, generatePsaFlow,
+  generatePsaViews, generatePsaAll, generatePsaFlow,
+  generatePsaUspStg, generatePsaUspCdc, generatePsaUspLog,
   executeSql, listOltpSources,
 } from '@/api'
 
@@ -84,7 +87,8 @@ const lineCount = computed(() => {
 
 const apiMap: Record<string, (rs: string) => Promise<any>> = {
   stg: (rs) => generatePsaStg(rs), cdc: (rs) => generatePsaCdc(rs), log: (rs) => generatePsaLog(rs),
-  views: (rs) => generatePsaViews(rs), usps: (rs) => generatePsaUsps(rs),
+  views: (rs) => generatePsaViews(rs),
+  'usp-stg': (rs) => generatePsaUspStg(rs), 'usp-cdc': (rs) => generatePsaUspCdc(rs), 'usp-log': (rs) => generatePsaUspLog(rs),
   all: (rs) => generatePsaAll(rs), flow: (rs) => generatePsaFlow(rs),
 }
 

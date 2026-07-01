@@ -1,8 +1,7 @@
 """PSA + DV 代码生成 API"""
 from fastapi import APIRouter, Query
 from app.database import get_meta_session
-from app.models.meta import Configuration, DatabaseRole
-from app.models.oltp_source import OltpSource
+from app.models.meta import Configuration
 from app.services.generator_psa import PSAGenerator
 from app.services.generator_dv import DVGenerator
 
@@ -26,20 +25,11 @@ def _get_config(session) -> tuple[str, str, str]:
     )
 
 
-def _get_oltp_db(session, record_src: str = None) -> str:
-    """从 OLTP_SOURCE 表获取数据库名"""
-    if record_src:
-        source = session.query(OltpSource).filter(OltpSource.record_src == record_src).first()
-        return source.database_name if source else None
-    return None
-
-
 def _get_psa(session=None, record_src: str = None):
     if session is None:
         session = get_meta_session()
     psa_db, hash_d, _ = _get_config(session)
-    oltp_db = _get_oltp_db(session, record_src)
-    return PSAGenerator(session, psa_db, hash_d, oltp_db_name=oltp_db, record_src=record_src)
+    return PSAGenerator(session, psa_db, hash_d, record_src=record_src)
 
 
 def _get_dv(session=None, record_src: str = None):
@@ -82,6 +72,24 @@ def generate_usps(record_src: str = Query(None, description="OLTP 源别名")):
         "success": True,
         "sql": gen.generate_usp_stg() + "\n\n" + gen.generate_usp_cdc() + "\n\n" + gen.generate_usp_log(),
     }
+
+
+@router.post("/psa/usp-stg")
+def generate_usp_stg(record_src: str = Query(None, description="OLTP 源别名")):
+    gen = _get_psa(record_src=record_src)
+    return {"success": True, "sql": gen.generate_usp_stg()}
+
+
+@router.post("/psa/usp-cdc")
+def generate_usp_cdc(record_src: str = Query(None, description="OLTP 源别名")):
+    gen = _get_psa(record_src=record_src)
+    return {"success": True, "sql": gen.generate_usp_cdc()}
+
+
+@router.post("/psa/usp-log")
+def generate_usp_log(record_src: str = Query(None, description="OLTP 源别名")):
+    gen = _get_psa(record_src=record_src)
+    return {"success": True, "sql": gen.generate_usp_log()}
 
 
 @router.post("/psa/all")

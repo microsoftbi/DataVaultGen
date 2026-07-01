@@ -3,14 +3,14 @@ GO
 
 {% for table in tables %}
 {% set pfx = table.record_src ~ '_' if table.record_src else '' %}{% set obj_name = pfx ~ table.table_name %}
-IF EXISTS (SELECT * FROM sys.procedures WHERE name = 'USP_{{ obj_name }}_LOG' AND schema_id = SCHEMA_ID('{{ table.schema_name }}'))
-    DROP PROCEDURE [{{ table.schema_name }}].[USP_{{ obj_name }}_LOG]
+IF EXISTS (SELECT * FROM sys.procedures WHERE name = 'USP_{{ obj_name }}_LOG' AND schema_id = SCHEMA_ID('DBO'))
+    DROP PROCEDURE [DBO].[USP_{{ obj_name }}_LOG]
 GO
-CREATE PROCEDURE [{{ table.schema_name }}].[USP_{{ obj_name }}_LOG]
+CREATE PROCEDURE [DBO].[USP_{{ obj_name }}_LOG]
 AS
 BEGIN
     DECLARE @LOGSOURCE AS NVARCHAR(100)
-    SET @LOGSOURCE = N'{{ psa_db_name }}.{{ table.schema_name }}.USP_{{ obj_name }}_LOG'
+    SET @LOGSOURCE = N'{{ psa_db_name }}.DBO.USP_{{ obj_name }}_LOG'
 
     EXEC META.dbo.USP_WRITELOG N'Start to load {{ obj_name }}_LOG', @LOGSOURCE, N'N'
 
@@ -64,7 +64,7 @@ BEGIN
                 {% for f in table.di_fields %}
                 SOURCE.[{{ f.field_name }}]{% if not loop.last %},{% endif %}
                 {% endfor %}
-            FROM [{{ table.schema_name }}].[{{ obj_name }}_CDC] SOURCE
+            FROM [DBO].[{{ obj_name }}_CDC] SOURCE
 
         COMMIT TRAN
 

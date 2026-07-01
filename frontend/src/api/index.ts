@@ -143,6 +143,18 @@ export function generatePsaUsps(recordSrc?: string) {
   return http.post<{ success: boolean; sql: string }>('/generate/psa/usps', null, { params: { record_src: recordSrc } })
 }
 
+export function generatePsaUspStg(recordSrc?: string) {
+  return http.post<{ success: boolean; sql: string }>('/generate/psa/usp-stg', null, { params: { record_src: recordSrc } })
+}
+
+export function generatePsaUspCdc(recordSrc?: string) {
+  return http.post<{ success: boolean; sql: string }>('/generate/psa/usp-cdc', null, { params: { record_src: recordSrc } })
+}
+
+export function generatePsaUspLog(recordSrc?: string) {
+  return http.post<{ success: boolean; sql: string }>('/generate/psa/usp-log', null, { params: { record_src: recordSrc } })
+}
+
 export function generatePsaFlow(recordSrc?: string) {
   return http.post<{ success: boolean; sql: string }>('/generate/psa/flow', null, { params: { record_src: recordSrc } })
 }
@@ -290,6 +302,9 @@ export function updateDbRoles(data: { stage: DatabaseRoleUpdate; core: DatabaseR
   return http.put<{ success: boolean; data: any }>('/db-roles', data)
 }
 
+export function createDatabase(roleName: string) {
+  return http.post<{ success: boolean; message: string }>(`/db-roles/${roleName}/create-database`)
+}
 // ── OLTP 源管理 ──────────────────────────────────────────────
 
 export function listOltpSources() {

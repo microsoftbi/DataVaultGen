@@ -3,9 +3,9 @@ GO
 
 {% for table in tables %}
 {% set pfx = table.record_src ~ '_' if table.record_src else '' %}{% set obj_name = pfx ~ table.table_name %}
-EXEC [{{ psa_db_name }}].[{{ table.schema_name }}].[USP_{{ obj_name }}_STG]
-EXEC [{{ psa_db_name }}].[{{ table.schema_name }}].[USP_{{ obj_name }}_CDC]
-EXEC [{{ psa_db_name }}].[{{ table.schema_name }}].[USP_{{ obj_name }}_LOG]
+EXEC [{{ psa_db_name }}].[DBO].[USP_{{ obj_name }}_STG]
+EXEC [{{ psa_db_name }}].[DBO].[USP_{{ obj_name }}_CDC]
+EXEC [{{ psa_db_name }}].[DBO].[USP_{{ obj_name }}_LOG]
 GO
 
 {% endfor %}
